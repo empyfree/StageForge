@@ -4,7 +4,7 @@ require 'sketchup.rb'
 require 'extensions.rb'
 
 module StageForge
-  VERSION = '0.10.1'
+  VERSION = '0.11.0'
 
   unless file_loaded?(__FILE__)
     ex = SketchupExtension.new('StageForge', 'stageforge/main')

@@ -13,7 +13,7 @@ SketchUp Ruby extension (.rbz): (a) staging (decks, tiers, fascia, leg reports, 
 - Staging never mixes metric and imperial decks. The seating dialog has its own independent unit setting. Dialog lengths are inches internally; seating-dialog field values are in display units (mm or in).
 - Aisles are floor-level markers shared by all banks. Other model objects are avoided within a height band (default 100–1100 mm). Areas can be faces or closed line loops with no face (never create a face).
 - Each bank is independent (own area, front, chair, settings), stored on a tagged group (`StageForge` dictionary). Changes relay only affected banks.
-- Tables: 5 ft / 5 ft 6 in / 6 ft round. Suggested centre spacing 3.0 / 3.25 / 3.5 m. Dining seats 6/8/10; cabaret (internal key `horseshoe`) seats 5/6/8 over 200 degrees at the back, all facing the front; cabaret front-to-back spacing is 75%. Staggered "row to row" is centre-to-centre distance. Best fit also tries in-line and staggered and keeps the fullest.
+- Tables: 5 ft / 5 ft 6 in / 6 ft round. Suggested centre spacing 3.0 / 3.25 / 3.5 m. Dining seats 6/8/10; cabaret (internal key `horseshoe`) seats 5/6/8 over a user-set arc (10-360, default 200) at the back, facing the front or each turning to face the stage centre; cabaret front-to-back spacing is 75%. Staggered "row to row" is centre-to-centre distance. Best fit also tries in-line and staggered and keeps the fullest. A fixed table count keeps the spacing if it fits, else shrinks it to 35%, and reports the centre-to-centre distance.
 - Extension Manager auto-update was dropped (user: "just an idea").
 
 ## Working style

@@ -20,7 +20,7 @@ module StageForge
       'horseshoe' => { 60.0 => 5, 66.0 => 6, 72.0 => 8 }
     }.freeze
     CHAIR_GAP = 2.0 # inches between the table edge and a pushed-in chair
-    HORSESHOE_SPAN = 200.0 * Math::PI / 180.0 # cabaret chairs cover 200 degrees of the table, centred on the back
+    DEFAULT_ARC = 200.0 # degrees of the table covered by cabaret chairs, centred on the back (user can set 10-360)
     CABARET_ROW_FACTOR = 0.75 # cabaret tables sit this much closer front to back
     STAGGER_ROW = Math.sqrt(3.0) / 2.0 # staggered rows close up by this much (equilateral packing)
 
@@ -40,12 +40,12 @@ module StageForge
     end
 
     # Seat centres and facings relative to a table centre. front = unit vector towards the front.
-    def self.seat_slots(arrangement, dia, seats, chair_len, front)
+    def self.seat_slots(arrangement, dia, seats, chair_len, front, arc = DEFAULT_ARC)
       r = dia / 2.0 + CHAIR_GAP + chair_len / 2.0
       if arrangement == 'horseshoe'
         base = Math.atan2(-front[1], -front[0]) # straight out of the back
         Array.new(seats) do |i|
-          a = base + ((i + 0.5) / seats - 0.5) * HORSESHOE_SPAN
+          a = base + ((i + 0.5) / seats - 0.5) * (arc.to_f.clamp(10.0, 360.0) * Math::PI / 180.0)
           [r * Math.cos(a), r * Math.sin(a), front[0], front[1]]
         end
       else
@@ -69,8 +69,8 @@ module StageForge
       Packer.hull(pts)
     end
 
-    def self.crowding_note(arrangement, dia, seats, chair_len, chair_wid, front)
-      slots = seat_slots(arrangement, dia, seats, chair_len, front)
+    def self.crowding_note(arrangement, dia, seats, chair_len, chair_wid, front, arc = DEFAULT_ARC)
+      slots = seat_slots(arrangement, dia, seats, chair_len, front, arc)
       return nil if slots.size < 2
       pairs = slots.each_cons(2).to_a
       pairs << [slots.last, slots.first] if arrangement != 'horseshoe'
@@ -86,21 +86,39 @@ module StageForge
     def self.run(region, outer, front, prm)
       arr = prm[:arrangement] == 'horseshoe' ? 'horseshoe' : 'dining'
       f = front ? front[:f] : [0.0, 1.0]
-      slots = seat_slots(arr, prm[:dia], prm[:seats], prm[:chair_len], f)
+      arc = prm[:arc] || DEFAULT_ARC
+      slots = seat_slots(arr, prm[:dia], prm[:seats], prm[:chair_len], f, arc)
       hull = footprint(arr, prm[:dia], slots, prm[:chair_len], prm[:chair_wid], prm[:margin])
+      # Cabaret facing the stage centre: each table's chairs turn to face the focal point, so the
+      # chair outline depends on where the table is (cached by 5 degree steps).
+      focal = prm[:focal]
+      aim = arr == 'horseshoe' && focal ? true : false
+      if aim
+        cache = {}
+        prm = prm.merge(hull_fn: lambda do |x, y|
+          fv = unit([focal[0] - x, focal[1] - y])
+          key = (Math.atan2(fv[1], fv[0]) / (Math::PI / 36.0)).round
+          cache[key] ||= begin
+            a = key * Math::PI / 36.0
+            fq = [Math.cos(a), Math.sin(a)]
+            footprint(arr, prm[:dia], seat_slots(arr, prm[:dia], prm[:seats], prm[:chair_len], fq, arc), prm[:chair_len], prm[:chair_wid], prm[:margin])
+          end
+        end)
+      end
       layout = prm[:layout]
-      tables =
-        case layout
-        when 'bestfit'
-          # Best fit is never worse than the neat layouts: try them too and keep the fullest.
-          fr = front || { mid: [0.0, 0.0], f: f }
-          [best_fit(region, outer, hull, prm), straight(region, outer, fr, hull, prm, false),
-           straight(region, outer, fr, hull, prm, true)].max_by(&:size)
-        else straight(region, outer, front || { mid: [0.0, 0.0], f: f }, hull, prm, layout == 'staggered')
-        end
+      fr = front || { mid: [0.0, 0.0], f: f }
+      capacity = nil
+      scale = 1.0
+      shortfall = nil
+      if prm[:count].to_i > 0
+        tables, scale, capacity, shortfall = fit_count(region, outer, fr, hull, prm, layout)
+      else
+        tables = place(region, outer, fr, hull, prm, layout)
+      end
       seats = []
       tables.each_with_index do |t, ti|
-        slots.each { |sx, sy, dx, dy| seats << Seat.new(t.x + sx, t.y + sy, dx, dy, ti) }
+        sl = aim ? seat_slots(arr, prm[:dia], prm[:seats], prm[:chair_len], unit([focal[0] - t.x, focal[1] - t.y]), arc) : slots
+        sl.each { |sx, sy, dx, dy| seats << Seat.new(t.x + sx, t.y + sy, dx, dy, ti) }
       end
       used = tables.map(&:row).compact.uniq.sort
       map = {}
@@ -111,20 +129,99 @@ module StageForge
         { row: i + 1, count: n * prm[:seats], tables: n }
       end
       notes = []
-      note = crowding_note(arr, prm[:dia], prm[:seats], prm[:chair_len], prm[:chair_wid], f)
+      note = crowding_note(arr, prm[:dia], prm[:seats], prm[:chair_len], prm[:chair_wid], f, prm[:arc] || DEFAULT_ARC)
       notes << note if note
       reach = hull.map { |p| Math.hypot(p[0], p[1]) }.max
       mind = Float::INFINITY
       tables.each_with_index { |a, i| tables.each_with_index { |b, j| next if j <= i; d = Math.hypot(a.x - b.x, a.y - b.y); mind = d if d < mind } }
       if mind < prm[:dia] - 0.5
         notes << 'The table spacing is smaller than the table diameter, so tables overlap.'
-      elsif arr == 'dining' && layout != 'bestfit' && prm[:side] < 2 * reach - 0.5
+      elsif arr == 'dining' && layout != 'bestfit' && prm[:side] * scale < 2 * reach - 0.5
         notes << 'The spacing is tighter than the chairs need: chairs of neighbouring tables overlap or touch.'
       end
-      { tables: tables, seats: seats, rows: rows, notes: notes, hull: hull }
+      near = nil
+      tables.each_with_index { |a, i| tables.each_with_index { |b, j| next if j <= i; d = Math.hypot(a.x - b.x, a.y - b.y); near = d if near.nil? || d < near } }
+      if shortfall
+        notes << "Only #{tables.size} of the #{prm[:count]} tables fit, even at the tightest spacing (#{(MIN_SCALE * 100).round}% of the requested spacing)."
+      elsif scale < 0.999
+        notes << "The area is too small for #{prm[:count]} tables at the requested spacing, so they are drawn #{((1 - scale) * 100).round}% closer together."
+      end
+      { tables: tables, seats: seats, rows: rows, notes: notes, hull: hull, scale: scale, capacity: capacity,
+        side_used: prm[:side] * scale, row_used: prm[:row] * scale, nearest: near }
     end
 
-    def self.ok?(hull, cx, cy, region, aisles)
+    # Lays tables out with the given spacing (prm) in one of the three styles.
+    def self.place(region, outer, fr, hull, prm, layout)
+      case layout
+      when 'bestfit'
+        # Best fit is never worse than the neat layouts: try them too and keep the fullest.
+        [best_fit(region, outer, hull, prm), straight(region, outer, fr, hull, prm, false),
+         straight(region, outer, fr, hull, prm, true)].max_by(&:size)
+      else straight(region, outer, fr, hull, prm, layout == 'staggered')
+      end
+    end
+
+    MIN_SCALE = 0.35 # fixed-count mode will squeeze spacing down to this fraction of the requested spacing
+
+    # Fixed number of tables: keep the requested spacing if that many fit; otherwise find the
+    # largest spacing (down to MIN_SCALE) that holds them. Tables may then clash with one another.
+    # Returns [tables, scale, capacity at the final spacing, shortfall (tables that would not fit)].
+    def self.fit_count(region, outer, fr, hull, prm, layout)
+      want = prm[:count].to_i
+      pr = prm.merge(max_seconds: layout == 'bestfit' ? 1.5 : 6.0)
+      try = lambda do |sc|
+        place(region, outer, fr, hull, pr.merge(side: prm[:side] * sc, row: prm[:row] * sc), layout)
+      end
+      found = try.call(1.0)
+      sc = 1.0
+      if found.size < want
+        lo = MIN_SCALE
+        low = try.call(lo)
+        if low.size < want
+          return [trim(low, want, fr, layout), lo, low.size, want - low.size]
+        end
+        best = [low, lo]
+        hi = 1.0
+        8.times do
+          mid = (lo + hi) / 2.0
+          r = try.call(mid)
+          if r.size >= want
+            best = [r, mid]
+            lo = mid
+          else
+            hi = mid
+          end
+        end
+        found, sc = best
+      end
+      [trim(found, want, fr, layout), sc, found.size, nil]
+    end
+
+    # Keeps `want` tables from a fuller layout: whole rows from the front, then the tables of the
+    # last row nearest the centre line (so it stays symmetrical). Best fit keeps those nearest the front.
+    def self.trim(tables, want, fr, layout)
+      return tables if tables.size <= want
+      fx, fy = fr[:f]
+      sx = -fy
+      sy = fx
+      mid = fr[:mid]
+      v = ->(tb) { (tb.x - mid[0]) * sx + (tb.y - mid[1]) * sy }
+      u = ->(tb) { -((tb.x - mid[0]) * fx + (tb.y - mid[1]) * fy) }
+      if tables.all?(&:row)
+        keep = []
+        tables.group_by(&:row).sort.each do |_r, row|
+          need = want - keep.size
+          break if need <= 0
+          keep.concat(row.size <= need ? row : row.sort_by { |tb| v.call(tb).abs }.first(need))
+        end
+        keep
+      else
+        tables.sort_by { |tb| u.call(tb) * 1000.0 + v.call(tb).abs }.first(want)
+      end
+    end
+
+    def self.ok?(hull, cx, cy, region, aisles, fn = nil)
+      hull = fn.call(cx, cy) if fn
       pts = hull.map { |p| [p[0] + cx, p[1] + cy] }
       return false unless Packer.fits?(pts, region)
       !Seating.blocked?(pts, aisles)
@@ -169,7 +266,7 @@ module StageForge
             v = vc + base + i * side
             x = mid[0] - fx * u + sx * v
             y = mid[1] - fy * u + sy * v
-            next unless ok?(hull, x, y, region, prm[:aisles])
+            next unless ok?(hull, x, y, region, prm[:aisles], prm[:hull_fn])
             found << Table.new(x, y, j)
           end
         end
@@ -207,7 +304,7 @@ module StageForge
                 x = cx + a * c - b * s
                 y = cy + a * s + b * c
                 next if x < bb[0] - side || x > bb[2] + side || y < bb[1] - side || y > bb[3] + side
-                found << Table.new(x, y, nil) if ok?(hull, x, y, region, prm[:aisles])
+                found << Table.new(x, y, nil) if ok?(hull, x, y, region, prm[:aisles], prm[:hull_fn])
               end
             end
             best = found if found.size > best.size
@@ -221,7 +318,7 @@ module StageForge
       while y <= bb[3] && Time.now < deadline + 2.0
         x = bb[0]
         while x <= bb[2]
-          if best.none? { |t| (t.x - x)**2 + (t.y - y)**2 < min2 } && ok?(hull, x, y, region, prm[:aisles])
+          if best.none? { |t| (t.x - x)**2 + (t.y - y)**2 < min2 } && ok?(hull, x, y, region, prm[:aisles], prm[:hull_fn])
             best << Table.new(x, y, nil)
           end
           x += step

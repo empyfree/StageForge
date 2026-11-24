@@ -185,6 +185,21 @@
         <label><input type="radio" name="tlay" value="bestfit"><span>Best fit</span></label>
       </div>
       <div class="hint" id="tlayHint"></div>
+      <div id="arcWrap">
+        <div class="two">
+          <div><label class="f" for="tarc">Chair arc (degrees, 10 to 360)</label><input type="text" id="tarc"></div>
+          <div><label class="f" for="tface">Chairs face</label>
+            <select id="tface"><option value="front">The front (parallel)</option><option value="centre">The stage centre</option></select></div>
+        </div>
+        <div class="hint" id="tfaceHint"></div>
+      </div>
+      <label class="f">Number of tables</label>
+      <div class="seg" id="tcmSeg">
+        <label><input type="radio" name="tcm" value="spacing"><span>From spacing (fit as many)</span></label>
+        <label><input type="radio" name="tcm" value="count"><span>Fixed number</span></label>
+      </div>
+      <div id="tcountWrap"><label class="f" for="tcount">Tables wanted</label><input type="text" id="tcount">
+        <div class="hint">Keeps your spacing if that many fit; otherwise pulls the tables closer until they do (down to 35%) and reports the centre-to-centre distance. Tables or chairs may then visually clash.</div></div>
       <div class="two">
         <div><label class="f" for="tseats">Seats per table</label><input type="text" id="tseats"></div>
         <div><label class="f" for="tside">Centre to centre</label><input type="text" id="tside"></div>
@@ -347,7 +362,7 @@ function tVal(k) { var s = tSuggest(), o = SE.st.t[k]; if (k === 'seats') { retu
 function toDisp(inches) { return du() === 'mm' ? inches * 25.4 : inches; }
 function fromDisp(v) { return du() === 'mm' ? v / 25.4 : v; }
 function defaults() {
-  return { kind: 'rows', t: { dia: 60, arr: 'dining', lay: 'inline', seats: null, side: null, row: null }, units: 'metric', mode: 'equal', avoid: true, rangeLo: 100 / 25.4, rangeHi: 1100 / 25.4, show: 'chair', facing: '+x', align: 'center', src: 'pick', stagger: false,
+  return { kind: 'rows', t: { dia: 60, arr: 'dining', lay: 'inline', seats: null, side: null, row: null, arc: 200, face: 'front', count: 0 }, units: 'metric', mode: 'equal', avoid: true, rangeLo: 100 / 25.4, rangeHi: 1100 / 25.4, show: 'chair', facing: '+x', align: 'center', src: 'pick', stagger: false,
            vals: { metric: Object.assign({}, DEF.metric), imperial: Object.assign({}, DEF.imperial) }, radius: {} };
 }
 function save() { send('save_state', JSON.stringify(SE.st)); }
@@ -394,6 +409,11 @@ function render() {
   $('go').textContent = tb ? 'Place tables' : 'Place seating';
   $('tseats').value = tVal('seats'); $('tside').value = fmtLen(toDisp(tVal('side')), du()); $('trow').value = fmtLen(toDisp(tVal('row')), du());
   $('trowWrap').hidden = st.t.lay === 'bestfit';
+  $('arcWrap').hidden = st.t.arr !== 'horseshoe';
+  $('tarc').value = st.t.arc; $('tface').value = st.t.face;
+  $('tfaceHint').textContent = st.t.face === 'centre' ? 'Each table\u2019s chairs turn to face the centre of the front, so tables out to the sides rotate round to face the stage.' : 'All chairs face straight to the front.';
+  document.querySelectorAll('input[name=tcm]').forEach(function (r) { r.checked = r.value === (st.t.count > 0 ? 'count' : 'spacing'); });
+  $('tcountWrap').hidden = !(st.t.count > 0); $('tcount').value = st.t.count > 0 ? st.t.count : '';
   var sg = tSuggest();
   $('tSuggest').textContent = 'Suggested for this table: ' + sg.seats + ' seats, ' + fmtLen(toDisp(sg.spacing), du()) + ' ' + du() + ' centre to centre. Type over any value to override it; changing the size or arrangement goes back to the suggestion.';
   $('tarrHint').textContent = st.t.arr === 'horseshoe' ? 'Chairs spread over 200\u00b0 of the back of the table, all facing the front. Tables sit 75% as far apart front to back.' : 'Chairs evenly round the table, all facing the centre.';
@@ -439,10 +459,16 @@ SE.onResult = function (r) {
   var tb = r.kind === 'tables';
   $('stats').innerHTML = (tb ? '<div><span>Tables</span><b class="big">' + r.tables + '</b></div>' : '') +
     '<div><span>' + (tb ? 'Guests' : 'Chairs') + '</span><b class="big">' + r.chairs + '</b></div>' +
+    (tb && r.spacing ? '<div><span>Centre to centre</span><b class="big">' + r.spacing + '</b></div>' : '') +
     (tb && r.rows === 0 ? '' : '<div><span>Rows</span><b class="big">' + r.rows + '</b></div>') +
     '<div><span>Area per chair</span><b class="big">' + r.per_chair + '</b></div>' +
     (r.aisles ? '<div><span>Aisles kept clear</span><b class="big">' + r.aisles + '</b></div>' : '');
   var n = $('notes'); n.innerHTML = '';
+  if (tb && r.spacing) {
+    var li0 = document.createElement('li');
+    li0.textContent = 'Spacing used: ' + r.spacing_side + ' across' + (r.spacing_row ? ', ' + r.spacing_row + ' row to row' : '') + ' (centre to centre). Closest pair of tables: ' + r.spacing + '.' + (r.wanted ? ' ' + r.tables + ' of ' + r.wanted + ' tables wanted; the area would hold ' + r.capacity + ' at this spacing.' : '');
+    n.appendChild(li0);
+  }
   r.notes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; n.appendChild(li); });
   $('thead').innerHTML = tb ? '<th>Row</th><th class="num">Tables</th><th class="num">Guests</th>' : '<th>Row</th><th class="num">Chairs</th>';
   var tbd = $('rows'); tbd.innerHTML = '';
@@ -512,6 +538,18 @@ $('tseats').addEventListener('change', function () {
   if (isNaN(v) || v <= 0) { setMsg('Could not read that spacing.', true); SE.st.t[k] = null; } else { SE.st.t[k] = fromDisp(v); if (k === 'side' && !SE.st.t.row) { /* row follows side until set */ } }
   tChange();
 }); });
+$('tarc').addEventListener('change', function () {
+  var v = parseFloat(this.value);
+  if (isNaN(v) || v < 10 || v > 360) { setMsg('The chair arc must be between 10 and 360 degrees.', true); v = 200; }
+  SE.st.t.arc = v; tChange();
+});
+$('tface').addEventListener('change', function () { SE.st.t.face = this.value; tChange(); });
+document.querySelectorAll('input[name=tcm]').forEach(function (r) { r.addEventListener('change', function () { if (r.checked) { SE.st.t.count = r.value === 'count' ? (SE.st.t.count > 0 ? SE.st.t.count : 20) : 0; tChange(); } }); });
+$('tcount').addEventListener('change', function () {
+  var v = parseInt(this.value, 10);
+  if (isNaN(v) || v < 1 || v > 500) { setMsg('Tables wanted must be a whole number from 1 to 500.', true); v = 20; }
+  SE.st.t.count = v; tChange();
+});
 $('tReset').addEventListener('click', function () { var t = SE.st.t; t.seats = t.side = t.row = null; tChange(); });
 function payload() {
   var st = SE.st, v = st.vals[st.units];
@@ -520,7 +558,7 @@ function payload() {
     facing: st.facing, align: st.align, stagger: st.mode === 'curved' ? !!st.stagger : false,
     focal_source: st.src, radius: st.radius[st.units] || null,
     kind: st.kind, t_dia: st.t.dia, t_arr: st.t.arr, t_layout: st.t.lay, t_seats: tVal('seats'),
-    t_side: toDisp(tVal('side')), t_row: toDisp(st.t.lay === 'bestfit' ? tVal('side') : tVal('row'))
+    t_arc: st.t.arc, t_face: st.t.face, t_count: st.t.count > 0 ? st.t.count : 0, t_side: toDisp(tVal('side')), t_row: toDisp(st.t.lay === 'bestfit' ? tVal('side') : tVal('row'))
   };
 }
 // With automatic updates on, changing a setting re-lays the current seating straight away.
@@ -541,6 +579,7 @@ SE.onAdopt = function (p) {
   if (q.kind === 'tables') {
     var kk = q.units === 'metric' ? 1 / 25.4 : 1, tt = st.t;
     tt.dia = q.t_dia || tt.dia; tt.arr = q.t_arr || tt.arr; tt.lay = q.t_layout || tt.lay;
+    tt.arc = q.t_arc || 200; tt.face = q.t_face || 'front'; tt.count = q.t_count || 0;
     tt.seats = q.t_seats || null; tt.side = q.t_side ? q.t_side * kk : null; tt.row = q.t_row ? q.t_row * kk : null;
   }
   if (q.mode) { st.mode = q.mode; }

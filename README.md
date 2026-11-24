@@ -35,6 +35,12 @@ Pick the area, the front (a line or an object) and a chair, and StageForge lays 
 The layout engines are tested outside SketchUp. The SketchUp-side parts (dialogs, observers, drawing the geometry) are tested in SketchUp by the user, so expect rough edges and report them.
 
 
+## What's new in 0.11.0 - fixed table counts, chair arcs, stage-facing cabaret
+
+- **Fixed number of tables:** under *Number of tables*, choose *Fixed number* and enter how many. It keeps your spacing if that many fit, otherwise pulls the tables closer (down to 35% of the spacing) until they do. The result reports the centre-to-centre spacing used (across, row to row, and the closest pair), and tables or chairs may visually clash. Works with in-line, staggered and best fit.
+- **Chair arc:** for cabaret tables you can now set how much of the table the chairs cover, from 10 to 360 degrees (default 200).
+- **Chairs face the stage centre:** for cabaret tables, *Chairs face > The stage centre* turns each table's chairs to face the centre of the front, so tables out to the sides rotate round to face the stage. Fit checks use the chair outline in 5 degree steps.
+
 ## What's new in 0.10.1
 
 - Horseshoe is now called **Cabaret**. Its chairs cover 200 degrees of the table, and its suggested row-to-row spacing is 75% of the centre-to-centre spacing.

@@ -176,3 +176,12 @@ r = pushed2.select { |f, _| f == 'onResult' }.last[1]; puts "result keys ok: #{r
 S.show_all('chair'); puts 'tables show_all ok'
 tb.params = tp; pay = JSON.parse(JSON.generate(S.bank_payload(tb))); raise unless pay['params']['kind']=='tables'
 puts 'TABLES PASSED'
+
+# ---- fixed count, arc, stage-facing ----
+%w[inline staggered bestfit].each do |lay|
+  S.lay_out(tb, tp.merge('t_layout'=>lay,'t_arr'=>'horseshoe','t_seats'=>5,'t_count'=>14,'t_arc'=>240,'t_face'=>'centre'), live: false, transparent: false)
+  r = pushed2.select { |f, _| f == 'onResult' }.last[1]
+  puts "fixed count #{lay}: #{tb.tables} tables (wanted 14), spacing #{r[:spacing]}, capacity #{r[:capacity]}"
+  raise 'count mismatch' unless tb.tables == 14
+end
+puts 'FIXED COUNT PASSED'

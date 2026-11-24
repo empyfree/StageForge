@@ -1071,7 +1071,15 @@ module StageForge
       obstacles, obs = obstacle_regions(bank, b, s, [[cheight, tz].max, 1.0].max)
       front = resolve_front(bank, Seating.centroid(b[:outer]))
       region = Packer::Region.new(b[:outer], b[:holes])
-      prm = { arrangement: arrangement, layout: layout, dia: dia, seats: seats, side: side, row: rowp,
+      count = s['t_count'].to_i
+      count = 0 if count < 0
+      arc = s['t_arc'].to_s.empty? ? Tables::DEFAULT_ARC : s['t_arc'].to_f
+      arc = [[arc, 10.0].max, 360.0].min
+      focal = nil
+      if s['t_face'] == 'centre' && arrangement == 'horseshoe'
+        focal = front[:centre] || front[:mid]
+      end
+      prm = { count: count, arc: arc, focal: focal, arrangement: arrangement, layout: layout, dia: dia, seats: seats, side: side, row: rowp,
               clearance: clearance, margin: margin, chair_len: clen, chair_wid: cwid,
               align: s['align'] == 'best' ? 'best' : 'center', aisles: aisles + obstacles, max_seconds: 6.0 }
       result = Tables.run(region, b[:outer], front, prm)
@@ -1103,6 +1111,11 @@ module StageForge
         @last = { rows: rows, chairs: seat_list.size, tables: tables.size, system: system, mode: bank.mode, kind: 'tables' }
         push('onResult', {
                kind: 'tables', tables: tables.size, chairs: seat_list.size, rows: rows.size,
+               wanted: count > 0 ? count : nil,
+               spacing: result[:nearest] ? Units.len(result[:nearest], system) : nil,
+               spacing_side: Units.len(result[:side_used], system),
+               spacing_row: layout == 'bestfit' ? nil : Units.len(result[:row_used], system),
+               capacity: result[:capacity],
                per_chair: Units.area(b[:area] / seat_list.size, system),
                area: Units.area(b[:area], system),
                per_row: rows.first(80), more: [rows.size - 80, 0].max,
