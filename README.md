@@ -1,6 +1,39 @@
 # StageForge
 
-SketchUp extension: draw a boundary, pick a staging system, get a stage populated with blocks.
+A SketchUp extension for event layouts. Draw an area in your model, and StageForge fills it: with **stage decks** and steps, or with **seating**, either rows of chairs or round table plans. Everything is measured from your own geometry and updates as the model changes.
+
+## What it does
+
+### Staging
+Draw a boundary (a face, a group, or a closed loop of lines) and pick a staging system. StageForge tiles it with real deck sizes from a make-and-model library.
+
+- **Library of makes and models.** Choose from the built-in catalogue, or add your own decks in `user_catalog.json`. A stage never mixes metric and imperial decks.
+- **Default deck and orientation.** The default deck's long edge runs along the side it divides into evenly, so a 9 m × 4 m stage of 2 × 1 m decks comes out as clean whole decks.
+- **Awkward shapes.** Corner pieces, triangles and semicircles fill odd outlines, and the quote shows what is left uncovered and which sizes would tile fully.
+- **Tiers and steps.** Multi-level stages follow the stage grid, with leftover length split evenly at both ends.
+- **Fascia.** Hard or soft fascia round the edge.
+- **Legs and reports.** Legs are placed under each deck, with a leg report for the whole stage.
+- **Units.** Show lengths in mm or feet independently of the deck system.
+
+### Seating
+Pick the area, the front (a line or an object) and a chair, and StageForge lays out the seating.
+
+- **Rows of chairs:** *Equal rows* (a straight grid), *Offset rows* (chairs sit in the gaps of the row before), or *Curved rows* around a focal point you pick, the centre of the front object, or a radius from the front.
+- **Round tables:** 5 ft, 5 ft 6 in or 6 ft tables.
+  - *Dining* has every chair facing the table, with 6, 8 or 10 seats suggested by size.
+  - *Cabaret* has chairs over 200° at the back of the table, all facing the front, with 5, 6 or 8 seats suggested by size.
+  - Tables can be laid out *In-line*, *Staggered* or *Best fit*. Best fit packs in as many tables as will fit.
+  - Suggested centre-to-centre spacing is 3.00, 3.25 or 3.50 m. Seats and spacing can be overridden.
+- **Spacing you control:** side-to-side and front-to-front pitch (570 mm and 1100 mm by default), clear space at the front, and a gap to the area edge.
+- **Aisles:** mark any shapes as aisles, and chairs and tables keep out of them. They are shared by every bank.
+- **Keeps clear of the model.** Chairs and tables avoid other objects in the model within a height band you set with a slider, and you can tell it to ignore anything that shouldn't block.
+- **Banks.** Run any number of seating areas at once. Each bank has its own area, front, chair and settings, and you can copy settings from one to another.
+- **Live updates.** Move an aisle, an object or the area, and only the affected banks re-lay themselves, in the same undo step.
+- **Simple boxes or real chairs.** Use plain boxes while testing, swap to your chair component to finish, and export the counts to CSV.
+
+### Status
+The layout engines are tested outside SketchUp. The SketchUp-side parts (dialogs, observers, drawing the geometry) are tested in SketchUp by the user, so expect rough edges and report them.
+
 
 ## What's new in 0.10.1
 
