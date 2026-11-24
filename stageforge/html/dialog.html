@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StageForge</title>
+<style>
+  :root {
+    --ground: #e8ebee;
+    --panel: #f6f7f8;
+    --ink: #17212b;
+    --muted: #5d6b78;
+    --rule: #c6cdd4;
+    --accent: #0f6e78;
+    --accent-ink: #ffffff;
+    --deck: #26303a;
+    --deck-line: #8fa3b3;
+    --warn: #9a3412;
+    --ok: #166534;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#12171c; --panel:#1b2229; --ink:#e6ebef; --muted:#93a1ad; --rule:#33404a;
+            --accent:#3bb0bd; --accent-ink:#06191c; --deck:#0d1216; --deck-line:#7d93a5; --warn:#fb923c; --ok:#4ade80; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink);
+    font: 13px/1.45 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  body { padding: 14px 16px 90px; }
+  h1 { font-size: 18px; margin: 0 0 2px; letter-spacing: .2px; }
+  .sub { color: var(--muted); margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  fieldset { border: 1px solid var(--rule); background: var(--panel); border-radius: 6px; margin: 0 0 12px; padding: 10px 12px 12px; }
+  legend { font-weight: 650; padding: 0 6px; }
+  label.f { display: block; margin: 8px 0 3px; color: var(--muted); }
+  select, input[type=text] { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px;
+    background: var(--ground); color: var(--ink); font: inherit; }
+  select:focus, input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg { display: flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .seg label { flex: 1; text-align: center; padding: 6px 4px; cursor: pointer; border-right: 1px solid var(--rule); color: var(--ink); }
+  .seg label:last-child { border-right: 0; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg input:checked + span { font-weight: 650; }
+  .seg label.sel { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+  button { font: inherit; padding: 6px 10px; border: 1px solid var(--rule); background: var(--ground); color: var(--ink);
+    border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 650; padding: 9px 18px; }
+  button:disabled { opacity: .55; cursor: default; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .status { margin-top: 8px; padding: 7px 9px; border-radius: 4px; border: 1px dashed var(--rule); color: var(--muted); }
+  .status.good { border-style: solid; border-color: var(--ok); color: var(--ink); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .lib-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 6px; }
+  .blk { display: flex; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--rule); border-radius: 5px;
+    background: var(--ground); cursor: pointer; }
+  .blk.on { border-color: var(--accent); }
+  .blk input { margin: 0; accent-color: var(--accent); }
+  .blk svg { flex: none; width: 52px; height: 34px; background: var(--deck); border-radius: 3px; }
+  .blk .t { min-width: 0; }
+  .blk .n { font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+  .blk .d { color: var(--muted); font-size: 12px; }
+  .blk:not(.on) svg { opacity: .45; }
+  .blk .def { margin-left: auto; display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
+  .blk .def input { accent-color: var(--accent); margin: 0 0 1px; }
+  .blk.isdef { box-shadow: inset 0 0 0 1px var(--accent); }
+  .dirty { color: var(--warn); font-size: 12px; }
+  .ver { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .quote { margin: 2px 0 8px; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--ground); font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rule); }
+  th { color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; }
+  .big { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stats { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .stats div span { display: block; color: var(--muted); font-size: 12px; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px; background: var(--panel);
+    border-top: 1px solid var(--rule); display: flex; gap: 12px; align-items: center; }
+  .msg { flex: 1; min-width: 0; }
+  .msg.err { color: var(--warn); }
+  .warn-list { color: var(--warn); font-size: 12px; margin: 6px 0 0; padding-left: 16px; }
+</style>
+</head>
+<body>
+<h1>StageForge <span id="ver" class="ver"></span></h1>
+<p class="sub">Fill a drawn boundary with staging blocks, as efficiently as the library allows.</p>
+
+<div class="grid">
+  <div>
+    <fieldset>
+      <legend>Boundary</legend>
+      <div>Draw a closed shape flat on the ground (any outline, with arcs, angles or cut-outs). Select its face, or a group/component that contains it, then pick it up here.</div>
+      <div class="row">
+        <button id="useSel" class="primary" style="padding:6px 12px">Use selected face</button>
+      </div>
+      <div class="row">
+        <button data-tool="rect">Rectangle</button>
+        <button data-tool="line">Lines</button>
+        <button data-tool="arc">Arc</button>
+        <button data-tool="circle">Circle</button>
+        <button data-tool="polygon">Polygon</button>
+      </div>
+      <div id="bstatus" class="status">No boundary picked yet.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Staging system</legend>
+      <label class="f">Show and enter measurements in</label>
+      <div class="seg" id="unitSeg">
+        <label><input type="radio" name="display" value="metric"><span>Millimetres / metres</span></label>
+        <label><input type="radio" name="display" value="imperial"><span>Feet &amp; inches</span></label>
+      </div>
+      <div class="hint">Decks keep their own names and sizes (an 8' &times; 4' deck stays 8' &times; 4'). Heights, legs, steps and results all use this setting.</div>
+      <label class="f" for="make">Make</label>
+      <select id="make"></select>
+      <label class="f" for="model">Model</label>
+      <select id="model"></select>
+      <label class="f" for="height">Finished stage height (top of deck)</label>
+      <input type="text" id="height" list="heights" autocomplete="off">
+      <datalist id="heights"></datalist>
+      <div class="hint" id="heightHint"></div>
+      <label class="f" for="legDed">Legs are shorter than finished height by</label>
+      <input type="text" id="legDed">
+      <div class="hint" id="legDedHint"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Finish</legend>
+      <label class="f">Perimeter fascia</label>
+      <div class="seg" id="fasciaSeg">
+        <label><input type="radio" name="fascia" value="none"><span>None</span></label>
+        <label><input type="radio" name="fascia" value="hard"><span>Hard</span></label>
+        <label><input type="radio" name="fascia" value="soft"><span>Soft</span></label>
+      </div>
+      <div class="hint">Hard: rigid panel band. Soft: pleated skirt. Fascia follows the actual decking edge (and goes around any gaps).</div>
+      <label class="f">Block detail in the model</label>
+      <div class="seg" id="styleSeg">
+        <label><input type="radio" name="style" value="solid"><span>Solid</span></label>
+        <label><input type="radio" name="style" value="legs"><span>Deck + legs</span></label>
+      </div>
+      <label class="f" for="effort">Search effort</label>
+      <select id="effort">
+        <option value="fast">Fast (a few seconds)</option>
+        <option value="normal">Normal</option>
+        <option value="thorough">Thorough (up to a minute)</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tiered steps (optional)</legend>
+      <div>Mark one or more boundary edges as stepped edges. Overlapping tiers of the default deck step down to the floor, either added outside the edge or built inside it.</div>
+      <div class="row">
+        <button id="tierPick" class="primary" style="padding:6px 12px">Pick boundary edge&hellip;</button>
+        <button id="tierSel">Use selected edge(s)</button>
+        <button id="tierClear">Clear</button>
+      </div>
+      <div id="tierStatus" class="status">No stepped edges.</div>
+      <label class="f">Steps are built</label>
+      <div class="seg" id="tierSideSeg">
+        <label><input type="radio" name="tierside" value="out"><span>Outside the boundary</span></label>
+        <label><input type="radio" name="tierside" value="in"><span>Inside the boundary</span></label>
+      </div>
+      <div class="hint" id="tierSideHint"></div>
+      <div class="two">
+        <div><label class="f" for="tierRise">Aim for a rise of</label><input type="text" id="tierRise"></div>
+        <div><label class="f" for="tierSteps">Number of steps</label><input type="text" id="tierSteps" inputmode="numeric"></div>
+      </div>
+      <div class="two">
+        <div><label class="f" for="tierOverlap">Overlap between tiers</label><input type="text" id="tierOverlap"></div>
+        <div></div>
+      </div>
+      <div class="status good" id="tierCalc" style="margin-top:10px">Mark an edge to see the step calculation.</div>
+      <div class="hint" id="tierHint"></div>
+    </fieldset>
+  </div>
+
+  <div>
+    <fieldset>
+      <legend>Block library</legend>
+      <div class="lib-head">
+        <span class="hint" id="libHint">Tick the blocks you own. The round button marks your default deck.</span>
+        <span class="row" style="margin:0">
+          <button id="allOn">All</button>
+          <button id="allOff">None</button>
+        </span>
+      </div>
+      <div class="lib-head">
+        <span class="dirty" id="libDirty"></span>
+        <span class="row" style="margin:0">
+          <button id="saveLib" class="primary" style="padding:6px 12px">Save library choices</button>
+          <button id="resetLib">Reset to catalog</button>
+        </span>
+      </div>
+      <div class="blocks" id="blocks"></div>
+      <div class="row">
+        <button id="editCat">Edit / add makes and models&hellip;</button>
+        <button id="reloadCat">Reload catalog</button>
+      </div>
+      <ul class="warn-list" id="catWarn"></ul>
+    </fieldset>
+
+    <fieldset id="resultBox" hidden>
+      <legend>Result</legend>
+      <div class="quote" id="quote" hidden></div>
+      <div class="stats" id="stats"></div>
+      <ul class="warn-list" id="resNotes"></ul>
+      <table>
+        <thead><tr><th>Block</th><th>Size</th><th class="num">Qty</th><th class="num">Area</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <table>
+        <thead><tr><th>Leg length</th><th>Type</th><th class="num">Qty</th></tr></thead>
+        <tbody id="legRows"></tbody>
+      </table>
+      <div class="hint" id="legNote"></div>
+      <div class="row"><button id="csv">Export block list and legs (CSV)</button></div>
+    </fieldset>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="msg" id="msg">Ready.</div>
+  <button id="go" class="primary">Generate stage</button>
+</div>
+
+<script>
+var SF = { cat: null, st: null, boundary: false, lib: { enabled: {}, deck: {} }, dirty: false };
+function $(id) { return document.getElementById(id); }
+function send(name, arg) {
+  if (window.sketchup && window.sketchup[name]) { window.sketchup[name](arg === undefined ? '' : arg); }
+}
+function setMsg(t, err) { var m = $('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
+
+/*FMT-BEGIN*/
+/* All lengths held by the dialog are in inches. */
+function fmtImperial(v) {
+  var neg = v < 0, sx = Math.round(Math.abs(v) * 16), ft = Math.floor(sx / 192), rem = sx % 192;
+  var whole = Math.floor(rem / 16), fr = rem % 16, f = '', g;
+  if (fr) { g = gcd(fr, 16); f = (fr / g) + '/' + (16 / g); }
+  var inch = whole && f ? whole + ' ' + f : (f || String(whole));
+  var t = !ft ? inch + '"' : (!whole && !f ? ft + "'" : ft + "' " + inch + '"');
+  return neg ? '-' + t : t;
+}
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function fmtMetric(v) {
+  var mm = Math.round(v * 25.4);
+  return mm >= 10000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' m' : mm + ' mm';
+}
+function fmtIn(v, display) { return display === 'imperial' ? fmtImperial(v) : fmtMetric(v); }
+function parseIn(str, display) {
+  var s = String(str).trim().toLowerCase().replace(/inches|inch/g, 'in').replace(/feet|foot/g, 'ft')
+    .replace(/[’′]/g, "'").replace(/[”″]/g, '"').replace(/\s+/g, ' ');
+  if (!s) { return NaN; }
+  var m = s.match(/^(\d+(?:\.\d+)?)\s*(?:'|ft)\s*(?:(\d+(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?\s*(?:"|in)?)?$/);
+  if (m) {
+    if (m[4] !== undefined && +m[4] === 0) { return NaN; }
+    return parseFloat(m[1]) * 12 + (m[2] ? parseFloat(m[2]) : 0) + (m[3] ? +m[3] / +m[4] : 0);
+  }
+  m = s.match(/^(?:(\d+)\s+)?(\d+)\/(\d+)\s*(?:"|in)?$/);
+  if (m) { return +m[3] === 0 ? NaN : (m[1] ? +m[1] : 0) + +m[2] / +m[3]; }
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(mm|cm|m|in|")?$/);
+  if (!m) { return NaN; }
+  var v = parseFloat(m[1]), u = m[2] || (display === 'imperial' ? 'in' : 'mm');
+  return u === 'mm' ? v / 25.4 : u === 'cm' ? v / 2.54 : u === 'm' ? v * 1000 / 25.4 : v;
+}
+/*FMT-END*/
+function fmt(v) { return fmtIn(v, SF.st.display); }
+function parse(str) { return parseIn(str, SF.st.display); }
+function nat(m, v) { return v * (m.dim_unit === 'mm' ? 1 / 25.4 : 1); } /* catalog value -> inches */
+
+/* ---------- catalog helpers ---------- */
+function allModels() {
+  var out = [];
+  SF.cat.makes.forEach(function (mk) { mk.models.forEach(function (md) { out.push({ make: mk.name, md: md }); }); });
+  return out;
+}
+function makeNames() { return SF.cat.makes.map(function (mk) { return mk.name; }); }
+function modelsOf(make) { return allModels().filter(function (x) { return x.make === make; }); }
+function curModel() {
+  var m = allModels().filter(function (x) { return x.md.id === SF.st.model; })[0];
+  return m ? m.md : null;
+}
+
+/* ---------- block thumbnails ---------- */
+function shapePts(b) {
+  function arc(cx, cy, r, a0, a1, n) {
+    var o = [], k, t;
+    for (k = 0; k <= n; k++) { t = a0 + (a1 - a0) * k / n; o.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]); }
+    return o;
+  }
+  switch (b.shape) {
+    case 'rect': return [[0, 0], [b.w, 0], [b.w, b.h], [0, b.h]];
+    case 'tri': return [[0, 0], [b.w, 0], [0, b.h]];
+    case 'quad': return [[0, 0]].concat(arc(0, 0, b.r, 0, Math.PI / 2, 12));
+    case 'semi': return arc(b.r, 0, b.r, 0, Math.PI, 24);
+    case 'chamfer': return [[0, 0], [b.w, 0], [b.w, b.h - b.cut], [b.w - b.cut, b.h], [0, b.h]];
+    default: return (b.points || []).slice();
+  }
+}
+function thumb(b) {
+  var p = shapePts(b), minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+  p.forEach(function (q) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); miny = Math.min(miny, q[1]); maxy = Math.max(maxy, q[1]); });
+  var w = maxx - minx || 1, h = maxy - miny || 1, s = Math.min(44 / w, 26 / h);
+  var ox = (52 - w * s) / 2, oy = (34 - h * s) / 2;
+  var d = p.map(function (q, i) {
+    return (i ? 'L' : 'M') + (ox + (q[0] - minx) * s).toFixed(1) + ' ' + (oy + (maxy - q[1]) * s).toFixed(1);
+  }).join('') + 'Z';
+  return '<svg viewBox="0 0 52 34" aria-hidden="true"><path d="' + d + '" fill="#4b6275" stroke="#8fa3b3" stroke-width="1"/></svg>';
+}
+
+/* ---------- state (all lengths in inches) ---------- */
+var STATE_VERSION = 3;
+function defaults() {
+  return { sv: STATE_VERSION, display: 'metric', make: null, model: null, hIn: null, fascia: 'none', style: 'solid',
+           effort: 'normal', tierOverlapIn: {}, tierRiseIn: null, tierInside: false, legDedIn: {} };
+}
+function migrate(old) {
+  var st = defaults();
+  if (!old) { return st; }
+  if (old.sv === STATE_VERSION) { return Object.assign(st, old); }
+  /* an older build kept lengths in each model's own unit, so only the safe settings carry over */
+  if (old.units === 'imperial') { st.display = 'imperial'; }
+  ['fascia', 'style', 'effort', 'make', 'model', 'tierInside'].forEach(function (k) { if (old[k] !== undefined) { st[k] = old[k]; } });
+  return st;
+}
+function markSegs() {
+  document.querySelectorAll('.seg label').forEach(function (l) {
+    var i = l.querySelector('input'); l.className = i && i.checked ? 'sel' : '';
+  });
+}
+function save() { send('save_state', JSON.stringify(SF.st)); }
+
+function ensureValid() {
+  var st = SF.st;
+  if (!SF.cat.makes.length) { return; }
+  if (makeNames().indexOf(st.make) < 0) { st.make = makeNames()[0]; }
+  var ms = modelsOf(st.make);
+  if (!ms.some(function (x) { return x.md.id === st.model; })) { st.model = ms[0].md.id; }
+  if (!st.hIn) { st.hIn = st.display === 'imperial' ? 24 : 600 / 25.4; }
+}
+
+function renderAll() {
+  ensureValid();
+  var st = SF.st;
+  document.querySelectorAll('input[name=display]').forEach(function (r) { r.checked = r.value === st.display; });
+  document.querySelectorAll('input[name=fascia]').forEach(function (r) { r.checked = r.value === st.fascia; });
+  document.querySelectorAll('input[name=style]').forEach(function (r) { r.checked = r.value === st.style; });
+  $('effort').value = st.effort;
+  markSegs();
+  var mk = $('make'); mk.innerHTML = '';
+  makeNames().forEach(function (n) { var o = document.createElement('option'); o.value = n; o.textContent = n; mk.appendChild(o); });
+  mk.value = st.make;
+  renderModels();
+}
+function renderModels() {
+  var st = SF.st, md = $('model'); md.innerHTML = '';
+  modelsOf(st.make).forEach(function (x) {
+    var o = document.createElement('option'); o.value = x.md.id; o.textContent = x.md.name; md.appendChild(o);
+  });
+  md.value = st.model;
+  renderModelBits();
+}
+function renderHeights() {
+  var st = SF.st, dl = $('heights'); dl.innerHTML = '';
+  var list = st.display === 'imperial' ? [8, 16, 24, 32, 40, 48] : [200, 400, 600, 800, 1000, 1200].map(function (x) { return x / 25.4; });
+  list.forEach(function (h) { var o = document.createElement('option'); o.value = fmt(h); dl.appendChild(o); });
+  $('height').value = fmt(st.hIn);
+  $('heightHint').textContent = st.display === 'imperial' ? "e.g. 24, 2', 2' 6\", or 600 mm" : 'e.g. 600, 0.8 m, 1000 mm, or 2\' 6"';
+}
+function renderModelBits() {
+  var m = curModel(); if (!m) { return; }
+  renderHeights();
+  if (!SF.lib.enabled[m.id]) { SF.lib.enabled[m.id] = catalogEnabled(m); }
+  if (!SF.lib.deck[m.id] || !findBlock(m, SF.lib.deck[m.id])) { SF.lib.deck[m.id] = catalogDeck(m); }
+  renderBlocks();
+  renderTierFields();
+}
+function findBlock(m, id) { return m.blocks.filter(function (b) { return b.id === id; })[0]; }
+function catalogEnabled(m) { return m.blocks.filter(function (b) { return b.enabled !== false; }).map(function (b) { return b.id; }); }
+function catalogDeck(m) {
+  var rects = m.blocks.filter(function (b) { return b.shape === 'rect'; });
+  var flagged = rects.filter(function (b) { return b.default; })[0];
+  if (flagged) { return flagged.id; }
+  rects.sort(function (a, b) { return b.w * b.h - a.w * a.h; });
+  return rects.length ? rects[0].id : null;
+}
+function deckShort(m) { /* inches */
+  var d = findBlock(m, SF.lib.deck[m.id]);
+  return d ? nat(m, Math.min(d.w, d.h)) : null;
+}
+function catalogLegDed(m) { /* inches */
+  var v = m.leg_deduction !== undefined ? m.leg_deduction : (m.deck_thickness !== undefined ? m.deck_thickness : (m.dim_unit === 'mm' ? 25 : 1));
+  return nat(m, v);
+}
+function defaultRise() { return SF.st.display === 'imperial' ? 8 : 200 / 25.4; }
+function renderTierFields() {
+  var m = curModel(), st = SF.st, ds = deckShort(m);
+  var ov = st.tierOverlapIn[m.id], ld = st.legDedIn[m.id];
+  $('tierOverlap').value = ov ? fmt(ov) : '';
+  $('tierRise').value = st.tierRiseIn ? fmt(st.tierRiseIn) : '';
+  $('tierOverlap').placeholder = ds ? 'default ' + fmt(ds / 2) + ' (half a deck)' : 'needs a default deck';
+  $('tierRise').placeholder = 'default ' + fmt(defaultRise());
+  $('tierSteps').placeholder = 'blank = suggested';
+  $('legDed').value = ld !== undefined ? fmt(ld) : '';
+  $('legDed').placeholder = 'catalog default ' + fmt(catalogLegDed(m));
+  $('legDedHint').textContent = 'Legs are cut this much shorter than the finished height to allow for the deck depth. Set it per model (this is also the deck slab thickness drawn in the model).';
+  $('tierHint').textContent = ds ? 'Each tier is ' + fmt(ds) + ' deep (the default deck\'s short side) and runs under the next higher tier by the overlap.' : 'Tick a rectangular deck and mark it as the default deck.';
+  document.querySelectorAll('input[name=tierside]').forEach(function (r) { r.checked = r.value === (st.tierInside ? 'in' : 'out'); });
+  markSegs();
+  $('tierSideHint').textContent = st.tierInside
+    ? 'The steps finish on the marked edge and the stage shrinks to make room for them.'
+    : 'The steps are added beyond the marked edge, outside the drawn area.';
+  tierCalc();
+}
+function tierParams() {
+  var m = curModel(), st = SF.st, ds = deckShort(m);
+  var H = parse($('height').value);
+  var target = st.tierRiseIn || defaultRise();
+  var ov = st.tierOverlapIn[m.id] || (ds ? ds / 2 : 0);
+  var risers = Math.max(Math.ceil(H / target - 0.5 - 1e-9), 1), suggested = risers - 1;
+  var ovr = $('tierSteps').value.trim(), steps = suggested;
+  if (ovr !== '' && /^\d+$/.test(ovr)) { steps = parseInt(ovr, 10); }
+  return { m: m, ds: ds, H: H, target: target, ov: ov, suggested: suggested, steps: steps, custom: steps !== suggested };
+}
+function tierStepsValue() {
+  var v = $('tierSteps').value.trim();
+  return v !== '' && /^\d+$/.test(v) ? parseInt(v, 10) : null;
+}
+function tierCalc() {
+  var el = $('tierCalc'), q = tierParams();
+  if (isNaN(q.H) || q.H <= 0) { el.textContent = 'Enter a finished stage height.'; return; }
+  if (!q.ds) { el.textContent = 'Mark a rectangular deck as the default deck to size the steps.'; return; }
+  var steps = q.steps, pitch = q.ds - q.ov;
+  if (steps < 1) { el.textContent = 'No steps (stage height ' + fmt(q.H) + ').'; return; }
+  var rise = q.H / (steps + 1), tops = [], k;
+  for (k = steps; k >= 1; k--) { tops.push(fmt(q.H - k * rise)); }
+  var depth = steps * pitch, txt = 'Suggested ' + q.suggested + ' step' + (q.suggested === 1 ? '' : 's') + ' for ' + fmt(q.H) +
+    ' (aiming at ' + fmt(q.target) + ' per step). ';
+  txt += 'Using ' + steps + (q.custom ? ' (your override)' : '') + ': rise ' + fmt(rise) + ', step tops at ' + tops.join(' / ') +
+    ', ' + fmt(depth) + ' of floor space' + (SF.st.tierInside ? ' taken from the stage.' : ' beyond the edge.');
+  if (rise > q.target * 1.25) { txt += ' That is noticeably steeper than your target rise.'; }
+  el.textContent = txt;
+}
+function markDirty(on) {
+  SF.dirty = on;
+  $('libDirty').textContent = on ? 'Unsaved library changes' : '';
+}
+function renderBlocks() {
+  var m = curModel(), on = SF.lib.enabled[m.id], box = $('blocks'); box.innerHTML = '';
+  m.blocks.forEach(function (b) {
+    var el = document.createElement('label'), checked = on.indexOf(b.id) >= 0, isRect = b.shape === 'rect';
+    var isDef = SF.lib.deck[m.id] === b.id;
+    el.className = 'blk' + (checked ? ' on' : '') + (isDef ? ' isdef' : '');
+    el.innerHTML = '<input type="checkbox" class="en"' + (checked ? ' checked' : '') + '>' + thumb(b) +
+      '<span class="t"><div class="n"></div><div class="d"></div></span>' +
+      (isRect ? '<span class="def" title="Make this the default deck"><input type="radio" name="defdeck" aria-label="Default deck"' + (isDef ? ' checked' : '') + '>default</span>' : '');
+    el.querySelector('.n').textContent = b.name;
+    if (b.label && b.label !== b.name) { el.querySelector('.d').textContent = b.label; } else { el.querySelector('.d').remove(); }
+    el.querySelector('.en').addEventListener('change', function (e) {
+      var list = SF.lib.enabled[m.id], i = list.indexOf(b.id);
+      if (e.target.checked && i < 0) { list.push(b.id); }
+      if (!e.target.checked && i >= 0) { list.splice(i, 1); }
+      if (!e.target.checked && SF.lib.deck[m.id] === b.id) {
+        var other = m.blocks.filter(function (x) { return x.shape === 'rect' && list.indexOf(x.id) >= 0; })[0];
+        SF.lib.deck[m.id] = other ? other.id : null;
+      }
+      markDirty(true); renderBlocks(); renderTierFields();
+    });
+    var rd = el.querySelector('input[name=defdeck]');
+    if (rd) {
+      rd.addEventListener('change', function () {
+        SF.lib.deck[m.id] = b.id;
+        var list = SF.lib.enabled[m.id];
+        if (list.indexOf(b.id) < 0) { list.push(b.id); }
+        markDirty(true); renderBlocks(); renderTierFields();
+      });
+    }
+    box.appendChild(el);
+  });
+}
+
+/* ---------- callbacks from Ruby ---------- */
+SF.init = function (p) {
+  SF.cat = p.catalog;
+  SF.st = migrate(p.state);
+  var lib = p.library || {};
+  if (!lib.enabled && p.state && p.state.enabled) { lib = { enabled: p.state.enabled, deck: {} }; }
+  SF.lib = { enabled: lib.enabled || {}, deck: lib.deck || {} };
+  if (p.version) { $('ver').textContent = 'v' + p.version; }
+  markDirty(false);
+  var w = $('catWarn'); w.innerHTML = '';
+  (SF.cat.warnings || []).forEach(function (t) { var li = document.createElement('li'); li.textContent = t; w.appendChild(li); });
+  renderAll();
+  send('set_display', SF.st.display);
+  setMsg('Ready.');
+};
+SF.onBoundary = function (info) {
+  var s = $('bstatus');
+  if (!info) { s.className = 'status'; s.textContent = 'No boundary picked yet.'; SF.boundary = false; return; }
+  SF.boundary = true;
+  s.className = 'status good';
+  s.textContent = info.corners + ' corners' + (info.holes ? ', ' + info.holes + ' cut-out(s)' : '') +
+    ' • ' + info.area + ' • ' + info.size;
+};
+SF.onBusy = function (on) {
+  $('go').disabled = !!on;
+  if (on) { setMsg('Packing blocks… SketchUp may pause for a few seconds.'); }
+};
+SF.onError = function (t) { setMsg(t, true); };
+SF.onLibrarySaved = function () { markDirty(false); setMsg('Library choices saved. They will be used every time you open StageForge.'); };
+SF.onTiers = function (i) {
+  var s = $('tierStatus');
+  if (!i) { s.className = 'status'; s.textContent = 'No stepped edges.'; return; }
+  s.className = 'status good';
+  s.textContent = i.count + ' stepped edge(s), ' + i.length + ' in total';
+};
+SF.onResult = function (r) {
+  $('resultBox').hidden = false;
+  var q = $('quote');
+  if (r.quote) { q.hidden = false; q.textContent = 'Platform: ' + r.quote; } else { q.hidden = true; }
+  $('stats').innerHTML =
+    '<div><span>Coverage</span><b class="big">' + r.coverage + '%</b></div>' +
+    '<div><span>Blocks</span><b class="big">' + r.total_blocks + '</b></div>' +
+    '<div><span>Uncovered</span><b class="big">' + r.uncovered + '</b></div>' +
+    '<div><span>' + (r.fascia === 'none' ? 'Perimeter' : 'Fascia length') + '</span><b class="big">' + r.perimeter + '</b></div>' +
+    (r.steps ? '<div><span>Steps</span><b class="big">' + r.steps + '</b></div><div><span>Step rise</span><b class="big">' + r.rise + '</b></div>' : '') +
+    '<div><span>Legs</span><b class="big">' + r.total_legs + '</b></div>';
+  var lb = $('legRows'); lb.innerHTML = '';
+  r.legs.forEach(function (l) {
+    var tr = document.createElement('tr');
+    [l.length, l.kind, l.qty].forEach(function (v, i) { var td = document.createElement('td'); td.textContent = v; if (i === 2) { td.className = 'num'; } tr.appendChild(td); });
+    lb.appendChild(tr);
+  });
+  $('legNote').textContent = 'Each leg is ' + r.leg_deduction + ' shorter than the finished height of the deck it supports.';
+  var nb = $('resNotes'); nb.innerHTML = '';
+  (r.notes || []).forEach(function (t) { var li = document.createElement('li'); li.textContent = t; nb.appendChild(li); });
+  var tb = $('rows'); tb.innerHTML = '';
+  r.rows.forEach(function (x) {
+    var tr = document.createElement('tr');
+    [x.name, x.dims, x.qty, x.area].forEach(function (v, i) {
+      var td = document.createElement('td'); td.textContent = v; if (i > 1) { td.className = 'num'; } tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  setMsg('Stage built in ' + r.seconds + ' s. Undo (Ctrl/Cmd+Z) removes it in one step.');
+};
+
+/* ---------- UI events ---------- */
+document.querySelectorAll('input[name=display]').forEach(function (r) {
+  r.addEventListener('change', function () {
+    if (!r.checked) { return; }
+    SF.st.display = r.value; save(); renderAll(); send('set_display', r.value);
+  });
+});
+document.querySelectorAll('input[name=fascia]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { markSegs(); SF.st.fascia = r.value; save(); } });
+});
+document.querySelectorAll('input[name=style]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { markSegs(); SF.st.style = r.value; save(); } });
+});
+$('effort').addEventListener('change', function () { SF.st.effort = this.value; save(); });
+$('make').addEventListener('change', function () { SF.st.make = this.value; SF.st.model = null; ensureValid(); renderModels(); save(); });
+$('model').addEventListener('change', function () { SF.st.model = this.value; renderModelBits(); save(); });
+$('height').addEventListener('change', function () {
+  var v = parse(this.value);
+  if (isNaN(v) || v <= 0) { setMsg('Could not read that height.', true); this.value = fmt(SF.st.hIn); return; }
+  SF.st.hIn = v; this.value = fmt(v); save();
+  $('tierSteps').value = ''; tierCalc();
+});
+$('allOn').addEventListener('click', function () { var m = curModel(); SF.lib.enabled[m.id] = m.blocks.map(function (b) { return b.id; }); markDirty(true); renderBlocks(); renderTierFields(); });
+$('allOff').addEventListener('click', function () { var m = curModel(); SF.lib.enabled[m.id] = []; SF.lib.deck[m.id] = null; markDirty(true); renderBlocks(); renderTierFields(); });
+$('saveLib').addEventListener('click', function () { send('save_library', JSON.stringify(SF.lib)); });
+$('resetLib').addEventListener('click', function () {
+  var m = curModel(); SF.lib.enabled[m.id] = catalogEnabled(m); SF.lib.deck[m.id] = catalogDeck(m);
+  markDirty(true); renderBlocks(); renderTierFields(); setMsg('Reset to the catalog defaults. Press Save library choices to keep them.');
+});
+$('tierPick').addEventListener('click', function () { send('pick_tier_edge', SF.st.display); });
+$('tierSel').addEventListener('click', function () { send('add_tier_selected', SF.st.display); });
+$('tierClear').addEventListener('click', function () { send('clear_tiers'); });
+document.querySelectorAll('input[name=tierside]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { SF.st.tierInside = r.value === 'in'; save(); renderTierFields(); } });
+});
+$('tierSteps').addEventListener('input', function () { tierCalc(); });
+$('tierSteps').addEventListener('change', function () {
+  var v = this.value.trim();
+  if (v !== '' && !(/^\d+$/.test(v) && parseInt(v, 10) <= 12)) { setMsg('Steps must be a whole number from 0 to 12.', true); this.value = ''; }
+  tierCalc();
+});
+$('legDed').addEventListener('change', function () {
+  var m = curModel();
+  if (this.value.trim() === '') { delete SF.st.legDedIn[m.id]; save(); renderTierFields(); return; }
+  var v = parse(this.value);
+  if (isNaN(v) || v < 0) { setMsg('Could not read that value.', true); delete SF.st.legDedIn[m.id]; this.value = ''; }
+  else { SF.st.legDedIn[m.id] = v; this.value = fmt(v); }
+  save();
+});
+$('tierRise').addEventListener('change', function () {
+  if (this.value.trim() === '') { SF.st.tierRiseIn = null; save(); tierCalc(); return; }
+  var v = parse(this.value);
+  if (isNaN(v) || v <= 0) { setMsg('Could not read that value.', true); SF.st.tierRiseIn = null; this.value = ''; }
+  else { SF.st.tierRiseIn = v; this.value = fmt(v); }
+  save(); tierCalc();
+});
+$('tierOverlap').addEventListener('change', function () {
+  var m = curModel();
+  if (this.value.trim() === '') { delete SF.st.tierOverlapIn[m.id]; save(); tierCalc(); return; }
+  var v = parse(this.value);
+  if (isNaN(v) || v <= 0) { setMsg('Could not read that value.', true); delete SF.st.tierOverlapIn[m.id]; this.value = ''; }
+  else { SF.st.tierOverlapIn[m.id] = v; this.value = fmt(v); }
+  save(); tierCalc();
+});
+$('useSel').addEventListener('click', function () { send('use_selection', SF.st.display); });
+document.querySelectorAll('[data-tool]').forEach(function (b) { b.addEventListener('click', function () { send('draw_tool', b.getAttribute('data-tool')); }); });
+$('editCat').addEventListener('click', function () { send('edit_catalog'); });
+$('reloadCat').addEventListener('click', function () { send('reload_catalog'); });
+$('csv').addEventListener('click', function () { send('export_csv'); });
+$('go').addEventListener('click', function () {
+  var m = curModel();
+  if (!m) { setMsg('No staging model available.', true); return; }
+  var hv = parse($('height').value);
+  if (isNaN(hv) || hv <= 0) { setMsg('Enter a valid stage height.', true); return; }
+  SF.st.hIn = hv;
+  setMsg('Starting…');
+  send('generate', JSON.stringify({
+    model: m.id, display: SF.st.display, height: hv, fascia: SF.st.fascia, style: SF.st.style, effort: SF.st.effort,
+    enabled: SF.lib.enabled[m.id], default_deck: SF.lib.deck[m.id] || null,
+    tier_overlap: SF.st.tierOverlapIn[m.id] || null, tier_rise: SF.st.tierRiseIn || null,
+    tier_inside: !!SF.st.tierInside, tier_steps: tierStepsValue(),
+    leg_deduction: SF.st.legDedIn[m.id] !== undefined ? SF.st.legDedIn[m.id] : null
+  }));
+});
+
+window.addEventListener('load', function () { send('ready'); });
+</script>
+</body>
+</html>

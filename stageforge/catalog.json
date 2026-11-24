@@ -1,0 +1,302 @@
+{
+ "schema": 1,
+ "note": "Generic starter library. Sizes are typical, not manufacturer data - add your real makes/models in ~/StageForge/user_catalog.json",
+ "makes": [
+  {
+   "name": "Generic",
+   "models": [
+    {
+     "id": "generic-metric-2x1",
+     "name": "Metric 2 × 1 m system",
+     "units": "metric",
+     "dim_unit": "mm",
+     "leg_size": 50,
+     "hard_fascia_thickness": 18,
+     "soft_pleat_pitch": 150,
+     "heights": [
+      200,
+      400,
+      600,
+      800,
+      1000,
+      1200
+     ],
+     "default_height": 600,
+     "blocks": [
+      {
+       "id": "r2000x1000",
+       "name": "Deck 2000 × 1000",
+       "shape": "rect",
+       "w": 2000,
+       "h": 1000,
+       "enabled": true,
+       "default": true
+      },
+      {
+       "id": "r1000x1000",
+       "name": "Deck 1000 × 1000",
+       "shape": "rect",
+       "w": 1000,
+       "h": 1000,
+       "enabled": true
+      },
+      {
+       "id": "r2000x500",
+       "name": "Deck 2000 × 500",
+       "shape": "rect",
+       "w": 2000,
+       "h": 500,
+       "enabled": true
+      },
+      {
+       "id": "r1000x500",
+       "name": "Deck 1000 × 500",
+       "shape": "rect",
+       "w": 1000,
+       "h": 500,
+       "enabled": true
+      },
+      {
+       "id": "r500x500",
+       "name": "Deck 500 × 500",
+       "shape": "rect",
+       "w": 500,
+       "h": 500,
+       "enabled": false
+      },
+      {
+       "id": "t1000",
+       "name": "Triangle 1000 × 1000",
+       "shape": "tri",
+       "w": 1000,
+       "h": 1000,
+       "enabled": true
+      },
+      {
+       "id": "t2000x1000",
+       "name": "Triangle 2000 × 1000",
+       "shape": "tri",
+       "w": 2000,
+       "h": 1000,
+       "enabled": false
+      },
+      {
+       "id": "q1000",
+       "name": "Quadrant R1000",
+       "shape": "quad",
+       "r": 1000,
+       "enabled": true
+      },
+      {
+       "id": "q2000",
+       "name": "Quadrant R2000",
+       "shape": "quad",
+       "r": 2000,
+       "enabled": false
+      },
+      {
+       "id": "s1000",
+       "name": "Semicircle R1000",
+       "shape": "semi",
+       "r": 1000,
+       "enabled": true
+      },
+      {
+       "id": "c1000",
+       "name": "Corner 1000 × 1000, cut 500",
+       "shape": "chamfer",
+       "w": 1000,
+       "h": 1000,
+       "cut": 500,
+       "enabled": false
+      }
+     ],
+     "leg_deduction": 25
+    },
+    {
+     "id": "generic-imperial-4x8",
+     "name": "Imperial 4 × 8 ft system",
+     "units": "imperial",
+     "dim_unit": "in",
+     "leg_size": 2,
+     "hard_fascia_thickness": 0.75,
+     "soft_pleat_pitch": 6,
+     "heights": [
+      8,
+      16,
+      24,
+      32,
+      40,
+      48
+     ],
+     "default_height": 24,
+     "blocks": [
+      {
+       "id": "r96x48",
+       "name": "Deck 8' × 4'",
+       "shape": "rect",
+       "w": 96,
+       "h": 48,
+       "enabled": true,
+       "default": true
+      },
+      {
+       "id": "r48x48",
+       "name": "Deck 4' × 4'",
+       "shape": "rect",
+       "w": 48,
+       "h": 48,
+       "enabled": true
+      },
+      {
+       "id": "r96x24",
+       "name": "Deck 8' × 2'",
+       "shape": "rect",
+       "w": 96,
+       "h": 24,
+       "enabled": true
+      },
+      {
+       "id": "r48x24",
+       "name": "Deck 4' × 2'",
+       "shape": "rect",
+       "w": 48,
+       "h": 24,
+       "enabled": true
+      },
+      {
+       "id": "r24x24",
+       "name": "Deck 2' × 2'",
+       "shape": "rect",
+       "w": 24,
+       "h": 24,
+       "enabled": false
+      },
+      {
+       "id": "t48",
+       "name": "Triangle 4' × 4'",
+       "shape": "tri",
+       "w": 48,
+       "h": 48,
+       "enabled": true
+      },
+      {
+       "id": "t96x48",
+       "name": "Triangle 8' × 4'",
+       "shape": "tri",
+       "w": 96,
+       "h": 48,
+       "enabled": false
+      },
+      {
+       "id": "q48",
+       "name": "Quadrant R4'",
+       "shape": "quad",
+       "r": 48,
+       "enabled": true
+      },
+      {
+       "id": "q96",
+       "name": "Quadrant R8'",
+       "shape": "quad",
+       "r": 96,
+       "enabled": false
+      },
+      {
+       "id": "s48",
+       "name": "Semicircle R4'",
+       "shape": "semi",
+       "r": 48,
+       "enabled": true
+      },
+      {
+       "id": "c48",
+       "name": "Corner 4' × 4', cut 2'",
+       "shape": "chamfer",
+       "w": 48,
+       "h": 48,
+       "cut": 24,
+       "enabled": false
+      }
+     ],
+     "leg_deduction": 1
+    },
+    {
+     "id": "generic-imperial-3ft",
+     "name": "Imperial 3 ft grid system",
+     "units": "imperial",
+     "dim_unit": "in",
+     "leg_size": 2,
+     "hard_fascia_thickness": 0.75,
+     "soft_pleat_pitch": 6,
+     "heights": [
+      8,
+      16,
+      24,
+      32,
+      40
+     ],
+     "default_height": 24,
+     "blocks": [
+      {
+       "id": "r72x36",
+       "name": "Deck 6' × 3'",
+       "shape": "rect",
+       "w": 72,
+       "h": 36,
+       "enabled": true,
+       "default": true
+      },
+      {
+       "id": "r36x36",
+       "name": "Deck 3' × 3'",
+       "shape": "rect",
+       "w": 36,
+       "h": 36,
+       "enabled": true
+      },
+      {
+       "id": "r72x18",
+       "name": "Deck 6' × 18\"",
+       "shape": "rect",
+       "w": 72,
+       "h": 18,
+       "enabled": false
+      },
+      {
+       "id": "r36x18",
+       "name": "Deck 3' × 18\"",
+       "shape": "rect",
+       "w": 36,
+       "h": 18,
+       "enabled": false
+      },
+      {
+       "id": "t36",
+       "name": "Triangle 3' × 3'",
+       "shape": "tri",
+       "w": 36,
+       "h": 36,
+       "enabled": true
+      },
+      {
+       "id": "q36",
+       "name": "Quadrant R3'",
+       "shape": "quad",
+       "r": 36,
+       "enabled": true
+      },
+      {
+       "id": "s36",
+       "name": "Semicircle R3'",
+       "shape": "semi",
+       "r": 36,
+       "enabled": true
+      }
+     ],
+     "leg_deduction": 1
+    }
+   ]
+  }
+ ]
+}

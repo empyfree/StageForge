@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StageForge Seating</title>
+<style>
+  :root {
+    --ground: #e8ebee; --panel: #f6f7f8; --ink: #17212b; --muted: #5d6b78; --rule: #c6cdd4;
+    --accent: #0f6e78; --accent-ink: #ffffff; --deck: #26303a; --dot: #8fd0d8; --warn: #9a3412; --ok: #166534;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#12171c; --panel:#1b2229; --ink:#e6ebef; --muted:#93a1ad; --rule:#33404a;
+            --accent:#3bb0bd; --accent-ink:#06191c; --deck:#0d1216; --dot:#6bc4cf; --warn:#fb923c; --ok:#4ade80; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink);
+    font: 13px/1.45 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  body { padding: 14px 16px 90px; }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  fieldset { border: 1px solid var(--rule); background: var(--panel); border-radius: 6px; margin: 0 0 12px; padding: 10px 12px 12px; }
+  legend { font-weight: 650; padding: 0 6px; }
+  label.f { display: block; margin: 8px 0 3px; color: var(--muted); }
+  select, input[type=text] { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px;
+    background: var(--ground); color: var(--ink); font: inherit; }
+  select:focus, input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .seg { display: flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .seg label { flex: 1; text-align: center; padding: 6px 4px; cursor: pointer; border-right: 1px solid var(--rule); }
+  .seg label:last-child { border-right: 0; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label.sel { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+  button { font: inherit; padding: 6px 10px; border: 1px solid var(--rule); background: var(--ground); color: var(--ink);
+    border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 650; padding: 9px 18px; }
+  button:disabled { opacity: .55; cursor: default; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .status { margin-top: 8px; padding: 7px 9px; border-radius: 4px; border: 1px dashed var(--rule); color: var(--muted); }
+  .status.good { border-style: solid; border-color: var(--ok); color: var(--ink); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mode { border: 1px solid var(--rule); border-radius: 6px; background: var(--ground); padding: 6px; cursor: pointer; text-align: center; }
+  .mode.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .mode input { position: absolute; opacity: 0; pointer-events: none; }
+  .mode svg { width: 100%; height: 56px; background: var(--deck); border-radius: 4px; display: block; margin-bottom: 5px; }
+  .mode b { display: block; }
+  .mode span { color: var(--muted); font-size: 12px; }
+  .chk { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .chk input { accent-color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--rule); }
+  th { color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; }
+  .big { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stats { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .stats div span { display: block; color: var(--muted); font-size: 12px; }
+  .scroll { max-height: 260px; overflow-y: auto; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px; background: var(--panel);
+    border-top: 1px solid var(--rule); display: flex; gap: 12px; align-items: center; }
+  .msg { flex: 1; min-width: 0; }
+  .msg.err { color: var(--warn); }
+  .notes { color: var(--warn); font-size: 12px; margin: 6px 0 0; padding-left: 16px; }
+  .ver { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .dual { position: relative; height: 30px; margin: 6px 4px 2px; }
+  .dual .track { position: absolute; left: 0; right: 0; top: 13px; height: 4px; background: var(--rule); border-radius: 2px; }
+  .dual .fill { position: absolute; top: 13px; height: 4px; background: #34bece; border-radius: 2px; }
+  .dual input[type=range] { position: absolute; left: 0; width: 100%; top: 4px; margin: 0; background: none; pointer-events: none;
+    -webkit-appearance: none; appearance: none; height: 22px; }
+  .dual input[type=range]::-webkit-slider-runnable-track { background: transparent; height: 22px; }
+  .dual input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; pointer-events: auto; cursor: pointer;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #34bece; margin-top: 3px; }
+  .dual input[type=range]::-moz-range-thumb { pointer-events: auto; cursor: pointer; width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; border: 2px solid #34bece; }
+  .rlabel { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<h1>Seating <span id="ver" class="ver"></span></h1>
+<p class="sub">Fill a drawn area with chairs, facing the front.</p>
+
+<div class="grid">
+  <div>
+    <fieldset>
+      <legend>Seating banks</legend>
+      <div>Each bank is its own block of seating with its own area, front, chair and layout. Click a bank here, or click its chairs in the model, to edit it.</div>
+      <select id="bankList" size="4" style="width:100%;margin-top:6px"></select>
+      <div class="row">
+        <button id="newBank" style="padding:6px 12px">New bank (copies these settings)</button>
+        <button id="delBank">Delete bank</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>1. Seating area</legend>
+      <div>Select a flat face, a closed set of lines (no face needed), or a group/component containing either, then pick it up.</div>
+      <div class="row"><button id="useB" class="primary" style="padding:6px 12px">Use selected face</button></div>
+      <div id="bStatus" class="status">No area picked yet.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Front</legend>
+      <div>Select a line or edge (including a boundary edge), or an object such as the stage or screen. Chairs face it.</div>
+      <div class="row"><button id="useF" class="primary" style="padding:6px 12px">Use selection as front</button></div>
+      <div id="fStatus" class="status">No front picked yet.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Chair</legend>
+      <div>Select your chair component in the model.</div>
+      <div class="row"><button id="useC" class="primary" style="padding:6px 12px">Use selected component</button></div>
+      <div id="cStatus" class="status">No chair picked yet.</div>
+      <label class="f" for="facing">Chair faces (in its own axes)</label>
+      <select id="facing">
+        <option value="+x">Towards +X (red axis)</option>
+        <option value="-x">Towards -X</option>
+        <option value="+y">Towards +Y (green axis)</option>
+        <option value="-y">Towards -Y</option>
+      </select>
+    </fieldset>
+    <fieldset>
+      <legend>5. Other objects in the model</legend>
+      <label class="chk"><input type="checkbox" id="avoid"> Keep chairs clear of other objects in the model</label>
+      <div class="hint">Objects inside the height range below (a stage, truss tower, pillar, table, planter…) block the chairs under them. Other banks' chairs and your aisle markers are never treated as objects, so aisles still work as floor-level markers. With automatic updates on, moving an object re-lays the seating.</div>
+      <label class="f">Heights to avoid (above the floor of the seating area)</label>
+      <div class="dual" id="dual">
+        <div class="track"></div><div class="fill" id="rfill"></div>
+        <input type="range" id="rangeLo" min="0" max="240" step="0.5">
+        <input type="range" id="rangeHi" min="0" max="240" step="0.5">
+      </div>
+      <div class="rlabel"><span id="rangeTxt"></span><span id="rangeMax"></span></div>
+      <div class="hint">An object blocks chairs if any part of it lies between the two handles. Low handle: ignore anything lower than this (rugs, cables, kerbs). High handle: ignore anything that starts higher than this (trusses, banners, canopies).</div>
+      <label class="f" for="gap">Extra gap around objects</label>
+      <input type="text" id="gap">
+      <div class="row">
+        <button id="ignoreB">Ignore selected objects</button>
+        <button id="unignoreB">Stop ignoring selected</button>
+        <button id="refreshB">Refresh all banks</button>
+      </div>
+      <div class="hint">Use Ignore for things that should not block (ground, terrain, a venue shell). With automatic updates ticked, moving or editing an object re-lays the banks it affects; otherwise press Refresh.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. Aisles (shared by every bank)</legend>
+      <div>Draw flat faces for aisles and gangways, loose or inside groups (any shape; they can run across several banks). Mark them as aisles and every bank they overlap keeps chairs clear of them, now and as you edit or move them. Aisles are saved in the model.</div>
+      <div class="row">
+        <button id="addA" class="primary" style="padding:6px 12px">Mark selection as aisles</button>
+        <button id="remA">Unmark selection</button>
+        <button id="clearA">Unmark all</button>
+      </div>
+      <div id="aStatus" class="status">No aisles defined.</div>
+    </fieldset>
+  </div>
+
+  <div>
+    <fieldset>
+      <legend>Layout type</legend>
+      <div class="seg" id="kindSeg">
+        <label><input type="radio" name="kind" value="rows"><span>Rows of chairs</span></label>
+        <label><input type="radio" name="kind" value="tables"><span>Round tables</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset id="tablesBox" hidden>
+      <legend>Table plan</legend>
+      <label class="f">Table size (diameter)</label>
+      <div class="seg" id="tdiaSeg">
+        <label><input type="radio" name="tdia" value="60"><span>5 ft</span></label>
+        <label><input type="radio" name="tdia" value="66"><span>5 ft 6 in</span></label>
+        <label><input type="radio" name="tdia" value="72"><span>6 ft</span></label>
+      </div>
+      <label class="f">Seating arrangement</label>
+      <div class="seg" id="tarrSeg">
+        <label><input type="radio" name="tarr" value="dining"><span>Dining (all face the table)</span></label>
+        <label><input type="radio" name="tarr" value="horseshoe"><span>Cabaret (face the front)</span></label>
+      </div>
+      <div class="hint" id="tarrHint"></div>
+      <label class="f">How tables are laid out</label>
+      <div class="seg" id="tlaySeg">
+        <label><input type="radio" name="tlay" value="inline"><span>In-line</span></label>
+        <label><input type="radio" name="tlay" value="staggered"><span>Staggered</span></label>
+        <label><input type="radio" name="tlay" value="bestfit"><span>Best fit</span></label>
+      </div>
+      <div class="hint" id="tlayHint"></div>
+      <div class="two">
+        <div><label class="f" for="tseats">Seats per table</label><input type="text" id="tseats"></div>
+        <div><label class="f" for="tside">Centre to centre</label><input type="text" id="tside"></div>
+      </div>
+      <div class="two">
+        <div id="trowWrap"><label class="f" for="trow">Row to row</label><input type="text" id="trow"></div>
+        <div><label class="f">&nbsp;</label><button id="tReset">Use suggested values</button></div>
+      </div>
+      <div class="hint" id="tSuggest"></div>
+    </fieldset>
+
+    <fieldset id="rowsBox">
+      <legend>Arrangement</legend>
+      <div class="modes" id="modes">
+        <label class="mode"><input type="radio" name="mode" value="equal">
+          <svg viewBox="0 0 120 56"><g fill="var(--dot)"><circle cx="20" cy="12" r="3"/><circle cx="40" cy="12" r="3"/><circle cx="60" cy="12" r="3"/><circle cx="80" cy="12" r="3"/><circle cx="100" cy="12" r="3"/><circle cx="20" cy="28" r="3"/><circle cx="40" cy="28" r="3"/><circle cx="60" cy="28" r="3"/><circle cx="80" cy="28" r="3"/><circle cx="100" cy="28" r="3"/><circle cx="20" cy="44" r="3"/><circle cx="40" cy="44" r="3"/><circle cx="60" cy="44" r="3"/><circle cx="80" cy="44" r="3"/><circle cx="100" cy="44" r="3"/></g></svg>
+          <b>Equal rows</b><span>Straight grid</span></label>
+        <label class="mode"><input type="radio" name="mode" value="offset">
+          <svg viewBox="0 0 120 56"><g fill="var(--dot)"><circle cx="20" cy="12" r="3"/><circle cx="40" cy="12" r="3"/><circle cx="60" cy="12" r="3"/><circle cx="80" cy="12" r="3"/><circle cx="100" cy="12" r="3"/><circle cx="30" cy="28" r="3"/><circle cx="50" cy="28" r="3"/><circle cx="70" cy="28" r="3"/><circle cx="90" cy="28" r="3"/><circle cx="20" cy="44" r="3"/><circle cx="40" cy="44" r="3"/><circle cx="60" cy="44" r="3"/><circle cx="80" cy="44" r="3"/><circle cx="100" cy="44" r="3"/></g></svg>
+          <b>Offset rows</b><span>Chairs sit in the gaps</span></label>
+        <label class="mode"><input type="radio" name="mode" value="curved">
+          <svg viewBox="0 0 120 56"><g fill="none" stroke="#4b6275" stroke-width="1"><path d="M20 12 A60 60 0 0 1 100 12"/><path d="M14 28 A66 66 0 0 1 106 28"/></g><g fill="var(--dot)"><circle cx="24" cy="14" r="3"/><circle cx="42" cy="9" r="3"/><circle cx="60" cy="7" r="3"/><circle cx="78" cy="9" r="3"/><circle cx="96" cy="14" r="3"/><circle cx="17" cy="30" r="3"/><circle cx="38" cy="23" r="3"/><circle cx="60" cy="21" r="3"/><circle cx="82" cy="23" r="3"/><circle cx="103" cy="30" r="3"/></g><circle cx="60" cy="58" r="3" fill="none" stroke="var(--dot)"/></svg>
+          <b>Curved rows</b><span>Around a focal point</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Preview</legend>
+      <label class="f">Show chairs as</label>
+      <div class="seg" id="showSeg">
+        <label><input type="radio" name="show" value="boxes"><span>Simple boxes</span></label>
+        <label><input type="radio" name="show" value="chair"><span>Chair component</span></label>
+      </div>
+      <div class="hint">Boxes are plain blocks the size of the chair's footprint, with a coloured front face. They keep the model fast while you test layouts. Switching swaps the placed layout in one undo step, without recalculating.</div>
+      <label class="chk"><input type="checkbox" id="live"> Update automatically when aisles, objects or seating areas move or change</label>
+      <div class="hint" id="liveHint">Place seating once, then switch this on. After you move or edit an aisle marker or the area, the layout is recalculated a moment later and Undo reverts it together with your edit. Boxes recalculate fastest.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Pitch and spacing</legend>
+      <div class="seg" id="unitSeg">
+        <label><input type="radio" name="units" value="metric"><span>Metric (mm)</span></label>
+        <label><input type="radio" name="units" value="imperial"><span>Imperial (in)</span></label>
+      </div>
+      <div id="rowPitch">
+      <div class="two">
+        <div><label class="f" for="side">Side to side</label><input type="text" id="side"></div>
+        <div><label class="f" for="row">Front to front</label><input type="text" id="row"></div>
+      </div>
+      <div class="hint">Both measured between the same point on neighbouring chairs (the centre of each chair's footprint).</div>
+      </div>
+      <div class="two">
+        <div><label class="f" for="clearance">Clear space at front</label><input type="text" id="clearance"></div>
+        <div><label class="f" for="margin">Gap to area edge</label><input type="text" id="margin"></div>
+      </div>
+      <div id="straightOpts">
+        <label class="f" for="align">Row alignment</label>
+        <select id="align">
+          <option value="center">Centred on the front (symmetrical)</option>
+          <option value="best">Best fit (most chairs)</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <fieldset id="curvedBox" hidden>
+      <legend>Curved row settings</legend>
+      <label class="f">Focal point (the point every chair faces)</label>
+      <div class="seg" id="srcSeg">
+        <label><input type="radio" name="src" value="pick"><span>Pick in model</span></label>
+        <label><input type="radio" name="src" value="front"><span>From front + radius</span></label>
+        <label><input type="radio" name="src" value="object"><span>Centre of front object</span></label>
+      </div>
+      <div id="pickRow" class="row">
+        <button id="pickF">Pick focal point&hellip;</button>
+        <button id="clearF">Clear</button>
+      </div>
+      <div id="fStatus2" class="status">No focal point picked.</div>
+      <label class="f" for="radius">Front row radius (focal point to the centre of the first row)</label>
+      <input type="text" id="radius" placeholder="blank = automatic">
+      <div class="hint">Blank: for a picked point, the first row starts at the area's nearest edge plus the front clear space. "From front + radius" needs a value (default 8 m).</div>
+      <label class="chk"><input type="checkbox" id="stagger"> Stagger alternate rows (chairs sit in the gaps of the row before)</label>
+    </fieldset>
+
+    <fieldset id="resultBox" hidden>
+      <legend>Result</legend>
+      <div class="stats" id="stats"></div>
+      <ul class="notes" id="notes"></ul>
+      <div class="scroll"><table>
+        <thead><tr id="thead"><th>Row</th><th class="num">Chairs</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div class="hint" id="more"></div>
+      <div class="row"><button id="csv">Export row counts (CSV)</button></div>
+    </fieldset>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="msg" id="msg">Ready.</div>
+  <button id="go" class="primary">Place seating</button>
+</div>
+
+<script>
+var SE = { st: null, haveFocal: false };
+function $(id) { return document.getElementById(id); }
+function send(name, arg) { if (window.sketchup && window.sketchup[name]) { window.sketchup[name](arg === undefined ? '' : arg); } }
+function setMsg(t, err) { var m = $('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
+
+function du() { return SE.st.units === 'metric' ? 'mm' : 'in'; }
+/*FMT-BEGIN*/
+/* All lengths held by the dialog are in inches. */
+function fmtImperial(v) {
+  var neg = v < 0, sx = Math.round(Math.abs(v) * 16), ft = Math.floor(sx / 192), rem = sx % 192;
+  var whole = Math.floor(rem / 16), fr = rem % 16, f = '', g;
+  if (fr) { g = gcd(fr, 16); f = (fr / g) + '/' + (16 / g); }
+  var inch = whole && f ? whole + ' ' + f : (f || String(whole));
+  var t = !ft ? inch + '"' : (!whole && !f ? ft + "'" : ft + "' " + inch + '"');
+  return neg ? '-' + t : t;
+}
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function fmtMetric(v) {
+  var mm = Math.round(v * 25.4);
+  return mm >= 10000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' m' : mm + ' mm';
+}
+function fmtIn(v, display) { return display === 'imperial' ? fmtImperial(v) : fmtMetric(v); }
+function parseIn(str, display) {
+  var s = String(str).trim().toLowerCase().replace(/inches|inch/g, 'in').replace(/feet|foot/g, 'ft')
+    .replace(/[’′]/g, "'").replace(/[”″]/g, '"').replace(/\s+/g, ' ');
+  if (!s) { return NaN; }
+  var m = s.match(/^(\d+(?:\.\d+)?)\s*(?:'|ft)\s*(?:(\d+(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?\s*(?:"|in)?)?$/);
+  if (m) {
+    if (m[4] !== undefined && +m[4] === 0) { return NaN; }
+    return parseFloat(m[1]) * 12 + (m[2] ? parseFloat(m[2]) : 0) + (m[3] ? +m[3] / +m[4] : 0);
+  }
+  m = s.match(/^(?:(\d+)\s+)?(\d+)\/(\d+)\s*(?:"|in)?$/);
+  if (m) { return +m[3] === 0 ? NaN : (m[1] ? +m[1] : 0) + +m[2] / +m[3]; }
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(mm|cm|m|in|")?$/);
+  if (!m) { return NaN; }
+  var v = parseFloat(m[1]), u = m[2] || (display === 'imperial' ? 'in' : 'mm');
+  return u === 'mm' ? v / 25.4 : u === 'cm' ? v / 2.54 : u === 'm' ? v * 1000 / 25.4 : v;
+}
+/*FMT-END*/
+/* values here are in the dialog's unit: mm (metric) or inches (imperial) */
+function fmtLen(v, unit) { return unit === 'mm' ? String(Math.round(v * 10) / 10) : fmtImperial(v); }
+function parseLen(str, unit) {
+  var inches = parseIn(str, unit === 'mm' ? 'metric' : 'imperial');
+  return unit === 'mm' ? inches * 25.4 : inches;
+}
+
+/* defaults are 570 mm / 1100 mm; imperial equivalents are rounded to 0.1 in */
+var DEF = { metric: { side: 570, row: 1100, clearance: 0, margin: 0, gap: 0 },
+            imperial: { side: 22.4, row: 43.3, clearance: 0, margin: 0, gap: 0 } };
+var FIELDS = ['side', 'row', 'clearance', 'margin', 'gap'];
+
+var T_SPACING_MM = { 60: 3000, 66: 3250, 72: 3500 };
+var T_SEATS = { dining: { 60: 6, 66: 8, 72: 10 }, horseshoe: { 60: 5, 66: 6, 72: 8 } };
+function tSuggest() { var st = SE.st; return { spacing: T_SPACING_MM[st.t.dia] / 25.4, seats: T_SEATS[st.t.arr][st.t.dia] }; }
+function tRowDefault() { return (SE.st.t.arr === 'horseshoe' ? 0.75 : 1) * tVal('side'); }
+function tVal(k) { var s = tSuggest(), o = SE.st.t[k]; if (k === 'seats') { return o || s.seats; } if (k === 'side') { return o || s.spacing; } return o || tRowDefault(); }
+function toDisp(inches) { return du() === 'mm' ? inches * 25.4 : inches; }
+function fromDisp(v) { return du() === 'mm' ? v / 25.4 : v; }
+function defaults() {
+  return { kind: 'rows', t: { dia: 60, arr: 'dining', lay: 'inline', seats: null, side: null, row: null }, units: 'metric', mode: 'equal', avoid: true, rangeLo: 100 / 25.4, rangeHi: 1100 / 25.4, show: 'chair', facing: '+x', align: 'center', src: 'pick', stagger: false,
+           vals: { metric: Object.assign({}, DEF.metric), imperial: Object.assign({}, DEF.imperial) }, radius: {} };
+}
+function save() { send('save_state', JSON.stringify(SE.st)); }
+function markSegs() {
+  document.querySelectorAll('.seg label').forEach(function (l) { var i = l.querySelector('input'); l.className = i && i.checked ? 'sel' : ''; });
+  document.querySelectorAll('.mode').forEach(function (l) { var i = l.querySelector('input'); l.className = 'mode' + (i && i.checked ? ' sel' : ''); });
+}
+function fmtHeight(inches) {
+  if (SE.st.units === 'imperial') { return fmtImperial(inches); }
+  var mm = inches * 25.4;
+  return mm < 1000 ? Math.round(mm) + ' mm' : (mm / 1000).toFixed(2) + ' m';
+}
+function renderRange() {
+  var st = SE.st, lo = $('rangeLo'), hi = $('rangeHi'), off = st.avoid === false;
+  lo.value = st.rangeLo; hi.value = st.rangeHi; lo.disabled = hi.disabled = off;
+  var max = 240, a = st.rangeLo / max * 100, b = st.rangeHi / max * 100;
+  $('rfill').style.left = a + '%'; $('rfill').style.width = Math.max(b - a, 0) + '%';
+  $('rangeMax').textContent = st.units === 'metric' ? '0 \u2013 6 m' : '0 \u2013 20 ft';
+  $('rangeTxt').textContent = 'Avoids objects from ' + fmtHeight(st.rangeLo) + ' to ' + fmtHeight(st.rangeHi) + ' above the floor';
+}
+function rangeInput(which) {
+  var st = SE.st, lo = parseFloat($('rangeLo').value), hi = parseFloat($('rangeHi').value);
+  if (which === 'lo' && lo > hi - 1) { lo = hi - 1; }
+  if (which === 'hi' && hi < lo + 1) { hi = lo + 1; }
+  st.rangeLo = Math.max(lo, 0); st.rangeHi = Math.min(hi, 240);
+  renderRange();
+}
+function render() {
+  var st = SE.st, vals = st.vals[st.units];
+  document.querySelectorAll('input[name=units]').forEach(function (r) { r.checked = r.value === st.units; });
+  document.querySelectorAll('input[name=mode]').forEach(function (r) { r.checked = r.value === st.mode; });
+  document.querySelectorAll('input[name=src]').forEach(function (r) { r.checked = r.value === st.src; });
+  document.querySelectorAll('input[name=show]').forEach(function (r) { r.checked = r.value === st.show; });
+  FIELDS.forEach(function (f) { $(f).value = fmtLen(vals[f], du()); });
+  $('radius').value = st.radius[st.units] ? fmtLen(st.radius[st.units], du()) : '';
+  $('avoid').checked = st.avoid !== false; $('gap').disabled = st.avoid === false;
+  renderRange();
+  var tb = st.kind === 'tables';
+  document.querySelectorAll('input[name=kind]').forEach(function (r) { r.checked = r.value === st.kind; });
+  document.querySelectorAll('input[name=tdia]').forEach(function (r) { r.checked = parseFloat(r.value) === st.t.dia; });
+  document.querySelectorAll('input[name=tarr]').forEach(function (r) { r.checked = r.value === st.t.arr; });
+  document.querySelectorAll('input[name=tlay]').forEach(function (r) { r.checked = r.value === st.t.lay; });
+  $('tablesBox').hidden = !tb; $('rowsBox').hidden = tb; $('rowPitch').hidden = tb;
+  $('go').textContent = tb ? 'Place tables' : 'Place seating';
+  $('tseats').value = tVal('seats'); $('tside').value = fmtLen(toDisp(tVal('side')), du()); $('trow').value = fmtLen(toDisp(tVal('row')), du());
+  $('trowWrap').hidden = st.t.lay === 'bestfit';
+  var sg = tSuggest();
+  $('tSuggest').textContent = 'Suggested for this table: ' + sg.seats + ' seats, ' + fmtLen(toDisp(sg.spacing), du()) + ' ' + du() + ' centre to centre. Type over any value to override it; changing the size or arrangement goes back to the suggestion.';
+  $('tarrHint').textContent = st.t.arr === 'horseshoe' ? 'Chairs spread over 200\u00b0 of the back of the table, all facing the front. Tables sit 75% as far apart front to back.' : 'Chairs evenly round the table, all facing the centre.';
+  $('tlayHint').textContent = st.t.lay === 'bestfit' ? 'Packs in as many tables as will fit, ignoring neat rows.' : (st.t.lay === 'staggered' ? 'Alternate rows shift half a table across. Row to row is the centre-to-centre distance to the neighbouring tables in the next row.' : 'Tables line up in rows square to the front.');
+  $('facing').value = st.facing; $('align').value = st.align; $('stagger').checked = !!st.stagger;
+  $('curvedBox').hidden = tb || st.mode !== 'curved';
+  $('straightOpts').hidden = tb || st.mode === 'curved';
+  $('pickRow').hidden = st.src !== 'pick';
+  $('fStatus2').hidden = st.src !== 'pick';
+  markSegs();
+}
+
+SE.init = function (p) {
+  SE.st = Object.assign(defaults(), p.state || {});
+  if (!(SE.st.rangeLo >= 0)) { SE.st.rangeLo = 100 / 25.4; } if (!(SE.st.rangeHi > SE.st.rangeLo)) { SE.st.rangeHi = 1100 / 25.4; }
+  ['metric', 'imperial'].forEach(function (u) { if (SE.st.vals[u].gap === undefined) { SE.st.vals[u].gap = 0; } });
+  if (p.version) { $('ver').textContent = 'v' + p.version; }
+  render(); setMsg('Ready.');
+};
+SE.onLiveState = function (on) { $('live').checked = !!on; };
+SE.onLive = function () { setMsg('Updating the layout\u2026'); };
+SE.onShown = function (show) { setMsg(show === 'boxes' ? 'Showing simple boxes.' : 'Showing the chair component.'); };
+SE.onBoundary = function (i) {
+  var s = $('bStatus'); s.className = 'status good';
+  s.textContent = i.corners + ' corners' + (i.holes ? ', ' + i.holes + ' cut-out(s)' : '') + ' \u2022 ' + i.area + ' \u2022 ' + i.size;
+};
+SE.onFront = function (i) { var s = $('fStatus'); s.className = 'status good'; s.textContent = i.text; };
+SE.onAisles = function (i) {
+  var s = $('aStatus');
+  if (!i) { s.className = 'status'; s.textContent = 'No aisles defined.'; return; }
+  s.className = 'status good'; s.textContent = i.count + ' aisle marker(s) \u2022 ' + i.area + ' kept clear';
+};
+SE.onChair = function (i) { var s = $('cStatus'); s.className = 'status good'; s.textContent = i.name + ' \u2022 ' + i.size; };
+SE.onFocal = function (i) {
+  var s = $('fStatus2');
+  if (!i) { SE.haveFocal = false; s.className = 'status'; s.textContent = 'No focal point picked.'; return; }
+  SE.haveFocal = true; s.className = 'status good'; s.textContent = 'Focal point: ' + i.text;
+};
+SE.onBusy = function (on) { $('go').disabled = !!on; if (on) { setMsg('Placing chairs\u2026 SketchUp may pause for a moment.'); } };
+SE.onError = function (t) { setMsg(t, true); };
+SE.onResult = function (r) {
+  $('resultBox').hidden = false;
+  var tb = r.kind === 'tables';
+  $('stats').innerHTML = (tb ? '<div><span>Tables</span><b class="big">' + r.tables + '</b></div>' : '') +
+    '<div><span>' + (tb ? 'Guests' : 'Chairs') + '</span><b class="big">' + r.chairs + '</b></div>' +
+    (tb && r.rows === 0 ? '' : '<div><span>Rows</span><b class="big">' + r.rows + '</b></div>') +
+    '<div><span>Area per chair</span><b class="big">' + r.per_chair + '</b></div>' +
+    (r.aisles ? '<div><span>Aisles kept clear</span><b class="big">' + r.aisles + '</b></div>' : '');
+  var n = $('notes'); n.innerHTML = '';
+  r.notes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; n.appendChild(li); });
+  $('thead').innerHTML = tb ? '<th>Row</th><th class="num">Tables</th><th class="num">Guests</th>' : '<th>Row</th><th class="num">Chairs</th>';
+  var tbd = $('rows'); tbd.innerHTML = '';
+  r.per_row.forEach(function (x) {
+    var tr = document.createElement('tr');
+    (tb ? [x.row, x.tables, x.count] : [x.row, x.count]).forEach(function (v, i) { var td = document.createElement('td'); td.textContent = v; if (i) { td.className = 'num'; } tr.appendChild(td); });
+    tbd.appendChild(tr);
+  });
+  $('more').textContent = r.more ? '\u2026and ' + r.more + ' more rows (all included in the CSV).' : '';
+  var unit = tb ? r.tables + ' tables (' + r.chairs + ' guests)' : r.chairs + ' chairs';
+  if (r.live) { setMsg('Layout updated: ' + unit + ' in ' + r.seconds + ' s.'); }
+  else { setMsg('Placed ' + unit + (r.show === 'boxes' ? ' as boxes (switch to "Chair component" to finalise)' : '') + '. Undo (Ctrl/Cmd+Z) removes them in one step.'); }
+};
+
+document.querySelectorAll('input[name=units]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { SE.st.units = r.value; render(); save(); } });
+});
+document.querySelectorAll('input[name=mode]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { SE.st.mode = r.value; render(); save(); maybeApply(); } });
+});
+document.querySelectorAll('input[name=show]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { SE.st.show = r.value; render(); save(); send('show_as', r.value); } });
+});
+$('live').addEventListener('change', function () { send('set_live', this.checked ? 'true' : 'false'); });
+document.querySelectorAll('input[name=src]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { SE.st.src = r.value; render(); save(); maybeApply(); } });
+});
+FIELDS.forEach(function (f) {
+  $(f).addEventListener('change', function () {
+    var v = parseLen(this.value, du());
+    var ok = !isNaN(v) && (f === 'clearance' || f === 'margin' || f === 'gap' ? v >= 0 : v > 0);
+    if (!ok) { setMsg('Could not read that value.', true); }
+    else { SE.st.vals[SE.st.units][f] = v; }
+    this.value = fmtLen(SE.st.vals[SE.st.units][f], du()); save(); maybeApply();
+  });
+});
+$('radius').addEventListener('change', function () {
+  if (this.value.trim() === '') { delete SE.st.radius[SE.st.units]; save(); return; }
+  var v = parseLen(this.value, du());
+  if (isNaN(v) || v <= 0) { setMsg('Could not read that radius.', true); delete SE.st.radius[SE.st.units]; this.value = ''; }
+  else { SE.st.radius[SE.st.units] = v; this.value = fmtLen(v, du()); }
+  save(); maybeApply();
+});
+$('facing').addEventListener('change', function () { SE.st.facing = this.value; save(); maybeApply(); });
+$('align').addEventListener('change', function () { SE.st.align = this.value; save(); maybeApply(); });
+$('stagger').addEventListener('change', function () { SE.st.stagger = this.checked; save(); maybeApply(); });
+$('useB').addEventListener('click', function () { send('use_boundary', SE.st.units); });
+$('useF').addEventListener('click', function () { send('use_front', SE.st.units); });
+$('useC').addEventListener('click', function () { send('use_chair', SE.st.units); });
+$('addA').addEventListener('click', function () { send('add_aisles', SE.st.units); });
+$('clearA').addEventListener('click', function () { send('clear_aisles'); });
+$('pickF').addEventListener('click', function () { send('pick_focal', SE.st.units); });
+$('clearF').addEventListener('click', function () { send('clear_focal'); });
+$('csv').addEventListener('click', function () { send('export_csv'); });
+function tChange() { render(); save(); maybeApply(); }
+document.querySelectorAll('input[name=kind]').forEach(function (r) { r.addEventListener('change', function () { if (r.checked) { SE.st.kind = r.value; tChange(); } }); });
+document.querySelectorAll('input[name=tdia]').forEach(function (r) { r.addEventListener('change', function () { if (r.checked) { var t = SE.st.t; t.dia = parseFloat(r.value); t.seats = t.side = t.row = null; tChange(); } }); });
+document.querySelectorAll('input[name=tarr]').forEach(function (r) { r.addEventListener('change', function () { if (r.checked) { var t = SE.st.t; t.arr = r.value; t.seats = t.side = t.row = null; tChange(); } }); });
+document.querySelectorAll('input[name=tlay]').forEach(function (r) { r.addEventListener('change', function () { if (r.checked) { SE.st.t.lay = r.value; tChange(); } }); });
+$('tseats').addEventListener('change', function () {
+  var v = parseInt(this.value, 10);
+  if (isNaN(v) || v < 1 || v > 24) { setMsg('Seats per table must be a whole number from 1 to 24.', true); SE.st.t.seats = null; } else { SE.st.t.seats = v; }
+  tChange();
+});
+['tside', 'trow'].forEach(function (id) { $(id).addEventListener('change', function () {
+  var v = parseLen(this.value, du()), k = id === 'tside' ? 'side' : 'row';
+  if (isNaN(v) || v <= 0) { setMsg('Could not read that spacing.', true); SE.st.t[k] = null; } else { SE.st.t[k] = fromDisp(v); if (k === 'side' && !SE.st.t.row) { /* row follows side until set */ } }
+  tChange();
+}); });
+$('tReset').addEventListener('click', function () { var t = SE.st.t; t.seats = t.side = t.row = null; tChange(); });
+function payload() {
+  var st = SE.st, v = st.vals[st.units];
+  return {
+    units: st.units, mode: st.mode, show: st.show, avoid: st.avoid !== false, avoid_gap: v.gap || 0, avoid_lo: st.units === 'metric' ? st.rangeLo * 25.4 : st.rangeLo, avoid_hi: st.units === 'metric' ? st.rangeHi * 25.4 : st.rangeHi, side: v.side, row: v.row, clearance: v.clearance, margin: v.margin,
+    facing: st.facing, align: st.align, stagger: st.mode === 'curved' ? !!st.stagger : false,
+    focal_source: st.src, radius: st.radius[st.units] || null,
+    kind: st.kind, t_dia: st.t.dia, t_arr: st.t.arr, t_layout: st.t.lay, t_seats: tVal('seats'),
+    t_side: toDisp(tVal('side')), t_row: toDisp(st.t.lay === 'bestfit' ? tVal('side') : tVal('row'))
+  };
+}
+// With automatic updates on, changing a setting re-lays the current seating straight away.
+var applyTimer = null;
+function maybeApply() {
+  if (!$('live').checked) { return; }
+  clearTimeout(applyTimer);
+  applyTimer = setTimeout(function () { send('apply_live', JSON.stringify(payload())); }, 250);
+}
+$('go').addEventListener('click', function () {
+  setMsg('Starting\u2026');
+  send('generate', JSON.stringify(payload()));
+});
+SE.onAdopt = function (p) {
+  var q = p.params || {}, st = SE.st;
+  if (q.units) { st.units = q.units; }
+  if (p.params) { st.kind = q.kind === 'tables' ? 'tables' : 'rows'; }
+  if (q.kind === 'tables') {
+    var kk = q.units === 'metric' ? 1 / 25.4 : 1, tt = st.t;
+    tt.dia = q.t_dia || tt.dia; tt.arr = q.t_arr || tt.arr; tt.lay = q.t_layout || tt.lay;
+    tt.seats = q.t_seats || null; tt.side = q.t_side ? q.t_side * kk : null; tt.row = q.t_row ? q.t_row * kk : null;
+  }
+  if (q.mode) { st.mode = q.mode; }
+  if (q.show) { st.show = q.show; }
+  if (q.facing) { st.facing = q.facing; }
+  if (q.align) { st.align = q.align; }
+  if (q.focal_source) { st.src = q.focal_source; }
+  if (p.params) { st.stagger = !!q.stagger; st.avoid = q.avoid !== false; }
+  if (q.avoid_gap !== undefined && q.avoid_gap !== null) { st.vals[st.units].gap = q.avoid_gap; }
+  if (q.avoid_lo !== undefined && q.avoid_lo !== null) { var k = st.units === 'metric' ? 1 / 25.4 : 1; st.rangeLo = q.avoid_lo * k; st.rangeHi = q.avoid_hi * k; }
+  FIELDS.forEach(function (f) { if (q[f] !== undefined && q[f] !== null) { st.vals[st.units][f] = q[f]; } });
+  if (p.params) { if (q.radius) { st.radius[st.units] = q.radius; } else { delete st.radius[st.units]; } }
+  render(); save();
+  var bs = $('bStatus'), fs = $('fStatus'), cs = $('cStatus');
+  if (p.boundary) { SE.onBoundary(p.boundary); } else { bs.className = 'status'; bs.textContent = 'No area picked yet.'; }
+  if (p.front) { SE.onFront(p.front); } else { fs.className = 'status'; fs.textContent = 'No front picked yet.'; }
+  if (p.chair) { SE.onChair(p.chair); } else { cs.className = 'status'; cs.textContent = 'No chair picked yet.'; }
+  SE.onAisles(p.aisles || null);
+  SE.onFocal(p.focal || null);
+  setMsg(p.params ? ('Editing ' + (p.name || 'this bank') + '. Change anything and press Place seating' +
+         ' (or tick automatic updates to see changes live).') : ((p.name || 'New bank') + ': pick its area, front and chair, then press Place seating.'));
+};
+SE.onBanks = function (p) {
+  var sel = $('bankList'); sel.innerHTML = '';
+  p.list.forEach(function (b) {
+    var o = document.createElement('option'); o.value = b.id; o.textContent = b.label; if (b.id === p.cur) { o.selected = true; }
+    sel.appendChild(o);
+  });
+};
+$('bankList').addEventListener('change', function () { send('select_bank', this.value); });
+$('newBank').addEventListener('click', function () { send('new_bank'); });
+$('delBank').addEventListener('click', function () {
+  send('delete_bank');
+});
+$('rangeLo').addEventListener('input', function () { rangeInput('lo'); });
+$('rangeHi').addEventListener('input', function () { rangeInput('hi'); });
+['rangeLo', 'rangeHi'].forEach(function (id) { $(id).addEventListener('change', function () {
+  save(); maybeApply();
+  if (!$('live').checked) { setMsg('Height range changed. Press Place seating to apply it (or tick automatic updates).'); }
+}); });
+$('avoid').addEventListener('change', function () { SE.st.avoid = this.checked; render(); save(); maybeApply(); });
+$('ignoreB').addEventListener('click', function () { send('ignore_objects', 'true'); });
+$('unignoreB').addEventListener('click', function () { send('ignore_objects', 'false'); });
+$('refreshB').addEventListener('click', function () { send('refresh_all'); });
+SE.onRefreshed = function (n) { setMsg('Re-checked the model and re-laid ' + n + ' bank(s).'); };
+$('remA').addEventListener('click', function () { send('remove_aisles', SE.st.units); });
+window.addEventListener('load', function () { send('ready'); });
+</script>
+</body>
+</html>
