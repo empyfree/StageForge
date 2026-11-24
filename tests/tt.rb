@@ -1,4 +1,4 @@
-D='/home/claude/stageforge_build/stageforge'
+D=File.expand_path('../stageforge', __dir__)
 require File.join(D,'packer'); require File.join(D,'seating'); require File.join(D,'tables')
 include StageForge
 W=20*39.37; H=12*39.37

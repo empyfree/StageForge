@@ -1,6 +1,6 @@
 $LOAD_PATH.unshift File.join(__dir__, 'stub')
 require 'sketchup.rb'
-root = '/home/claude/stageforge_build'
+root = File.expand_path('..', __dir__)
 load File.join(root, 'stageforge.rb')
 load File.join(root, 'stageforge/main.rb')
 

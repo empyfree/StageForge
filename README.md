@@ -1,4 +1,4 @@
-# StageForge 0.5.0 (first build - please read "Status")
+# StageForge
 
 SketchUp extension: draw a boundary, pick a staging system, get a stage populated with blocks.
 
